@@ -1,5 +1,6 @@
 import type { TextAnalysis } from '@/types/verification';
 import { FileText, AlertCircle, CheckCircle } from 'lucide-react';
+import { GlowCard } from '@/components/ui/glow-card';
 
 interface TextAnalysisCardProps {
   analysis: TextAnalysis;
@@ -9,7 +10,7 @@ export function TextAnalysisCard({ analysis }: TextAnalysisCardProps) {
   const hasIssues = analysis.sensationalLanguage.length > 0 || analysis.emotionalPatterns.length > 0;
   
   return (
-    <div className="glass-card rounded-2xl p-6 h-full">
+    <GlowCard>
       <div className="flex items-center gap-3 mb-4">
         <div className="p-2 bg-primary/10 rounded-lg">
           <FileText className="w-5 h-5 text-primary" />
@@ -72,6 +73,6 @@ export function TextAnalysisCard({ analysis }: TextAnalysisCardProps) {
           </div>
         )}
       </div>
-    </div>
+    </GlowCard>
   );
 }

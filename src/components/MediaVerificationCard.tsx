@@ -2,6 +2,7 @@ import type { MediaVerification, ImageInspectionDetail } from '@/types/verificat
 import { Image, AlertTriangle, CheckCircle, Clock, Wand2, Search, Brain, Eye, Fingerprint, ShieldCheck, ShieldAlert, ShieldX, Users, Box, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
+import { GlowCard } from '@/components/ui/glow-card';
 
 interface MediaVerificationCardProps {
   verification: MediaVerification;
@@ -148,7 +149,8 @@ export function MediaVerificationCard({ verification }: MediaVerificationCardPro
   const hasEnhancedAnalysis = !!verification.analysisDetails;
   
   return (
-    <div className="glass-card rounded-2xl p-6 space-y-6">
+    <GlowCard className="col-span-full">
+      <div className="space-y-6">
       {/* Header with Verdict */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -429,6 +431,7 @@ export function MediaVerificationCard({ verification }: MediaVerificationCardPro
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </GlowCard>
   );
 }
