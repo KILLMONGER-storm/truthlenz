@@ -10,7 +10,7 @@ export function Header() {
           <img 
             src={truthLenzLogo} 
             alt="TruthLenz Logo" 
-            className="h-12 w-auto object-contain rounded-lg transition-transform duration-200 hover:scale-110"
+            className="h-12 w-auto object-contain rounded-lg transition-all duration-300 hover:scale-110 hover:shadow-[0_0_20px_rgba(59,130,246,0.5)]"
           />
         </Link>
         
