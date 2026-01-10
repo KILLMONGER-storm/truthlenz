@@ -8,16 +8,16 @@ interface GlowCardProps {
 
 export function GlowCard({ children, className }: GlowCardProps) {
   return (
-    <div className={cn("relative h-full rounded-[1.25rem] border border-border/50 p-2 md:rounded-3xl md:p-3", className)}>
+    <div className={cn("relative rounded-2xl overflow-hidden", className)}>
       <GlowingEffect
         spread={40}
         glow={true}
-        disabled={false}
-        proximity={64}
+        proximity={100}
         inactiveZone={0.01}
-        borderWidth={2}
+        borderWidth={3}
+        blur={4}
       />
-      <div className="relative flex h-full flex-col overflow-hidden rounded-xl border border-border/30 p-6 dark:shadow-[0px_0px_27px_0px_#2D2D2D] bg-card/80 backdrop-blur-sm">
+      <div className="relative glass-card rounded-2xl p-6 h-full z-10">
         {children}
       </div>
     </div>
