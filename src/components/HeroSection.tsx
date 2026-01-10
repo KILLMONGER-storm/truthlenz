@@ -1,5 +1,14 @@
 import { Shield, Zap, Eye, Lock } from 'lucide-react';
 import { PatternText } from '@/components/ui/pattern-text';
+import { TypewriterText } from '@/components/ui/typewriter-text';
+
+const features = [
+  "Verify news articles, social media posts, images, and videos with our advanced AI.",
+  "Get instant credibility scores and detailed explanations.",
+  "Detect manipulated images and deepfake videos in seconds.",
+  "Cross-reference claims with trusted fact-checking databases.",
+  "Privacy-first approach — your data is never stored or shared.",
+];
 
 export function HeroSection() {
   return (
@@ -14,9 +23,13 @@ export function HeroSection() {
         <PatternText text="Before It Spreads" className="block" />
       </h1>
       
-      <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
-        Verify news articles, social media posts, images, and videos with our advanced AI. 
-        Get instant credibility scores and detailed explanations.
+      <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8 min-h-[3.5rem]">
+        <TypewriterText 
+          texts={features} 
+          typingSpeed={40} 
+          deletingSpeed={20} 
+          pauseDuration={2500}
+        />
       </p>
       
       {/* Features */}
