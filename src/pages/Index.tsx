@@ -19,10 +19,13 @@ const Index = () => {
 
   // When both animation is complete and we have a result, show results
   useEffect(() => {
+    console.log('State check:', { isAnimationComplete, hasPendingResult: !!pendingResult, isLoading, hasResult: !!result });
     if (isAnimationComplete && pendingResult) {
+      console.log('Transitioning to results page');
       setResult(pendingResult);
       setIsLoading(false);
       setIsAnimationComplete(false);
+      setPendingResult(null); // Clear pending result after transitioning
     }
   }, [isAnimationComplete, pendingResult]);
 
