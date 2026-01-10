@@ -11,29 +11,24 @@ import { toast } from 'sonner';
 
 const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const [isAnimationComplete, setIsAnimationComplete] = useState(false);
   const [result, setResult] = useState<VerificationResult | null>(null);
   const [pendingResult, setPendingResult] = useState<VerificationResult | null>(null);
   const [currentImageBase64, setCurrentImageBase64] = useState<string | undefined>();
   const [feedbackHistory, setFeedbackHistory] = useState<UserFeedback[]>();
 
-  // When both animation is complete and we have a result, show results
-  useEffect(() => {
-    console.log('State check:', { isAnimationComplete, hasPendingResult: !!pendingResult, isLoading, hasResult: !!result });
-    if (isAnimationComplete && pendingResult) {
-      console.log('Transitioning to results page');
+  const handleLoadingComplete = () => {
+    // When loading animation completes, transfer pending result to result
+    if (pendingResult) {
       setResult(pendingResult);
-      setIsLoading(false);
-      setIsAnimationComplete(false);
-      setPendingResult(null); // Clear pending result after transitioning
+      setPendingResult(null);
     }
-  }, [isAnimationComplete, pendingResult]);
+    setIsLoading(false);
+  };
 
   const handleVerify = async (input: VerificationInput) => {
     setIsLoading(true);
     setResult(null);
     setPendingResult(null);
-    setIsAnimationComplete(false);
     setCurrentImageBase64(undefined);
     
     try {
@@ -50,16 +45,12 @@ const Index = () => {
       toast.error('Verification failed. Please try again.');
       console.error('Verification error:', error);
       setIsLoading(false);
-      setIsAnimationComplete(false);
     }
-  };
-
-  const handleLoadingComplete = () => {
-    setIsAnimationComplete(true);
   };
 
   const handleNewVerification = () => {
     setResult(null);
+    setPendingResult(null);
     setCurrentImageBase64(undefined);
   };
 
