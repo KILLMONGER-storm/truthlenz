@@ -15,18 +15,7 @@ export function PatternText({
       )}
       {...props}
     >
-      {text.split('').map((char, index) => (
-        <span
-          key={index}
-          className="inline-block transition-transform duration-200 ease-out hover:-translate-y-1"
-          style={{ 
-            WebkitBackgroundClip: 'text',
-            backgroundClip: 'text',
-          }}
-        >
-          {char === ' ' ? '\u00A0' : char}
-        </span>
-      ))}
+      {text}
     </span>
   );
 }
