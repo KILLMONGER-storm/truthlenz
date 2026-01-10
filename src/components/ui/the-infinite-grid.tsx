@@ -12,10 +12,9 @@ import { useTheme } from "next-themes";
 interface InfiniteGridProps {
   className?: string;
   children?: React.ReactNode;
-  showContent?: boolean;
 }
 
-export const InfiniteGrid = ({ className, children, showContent = false }: InfiniteGridProps) => {
+export const InfiniteGrid = ({ className, children }: InfiniteGridProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
@@ -32,8 +31,8 @@ export const InfiniteGrid = ({ className, children, showContent = false }: Infin
   const gridOffsetX = useMotionValue(0);
   const gridOffsetY = useMotionValue(0);
 
-  const speedX = 0.3; 
-  const speedY = 0.3;
+  const speedX = 0.5; 
+  const speedY = 0.5;
 
   useAnimationFrame(() => {
     const currentX = gridOffsetX.get();
@@ -42,7 +41,7 @@ export const InfiniteGrid = ({ className, children, showContent = false }: Infin
     gridOffsetY.set((currentY + speedY) % 40);
   });
 
-  const maskImage = useMotionTemplate`radial-gradient(400px circle at ${mouseX}px ${mouseY}px, black, transparent)`;
+  const maskImage = useMotionTemplate`radial-gradient(300px circle at ${mouseX}px ${mouseY}px, black, transparent)`;
 
   return (
     <div 
@@ -50,54 +49,49 @@ export const InfiniteGrid = ({ className, children, showContent = false }: Infin
       onMouseMove={handleMouseMove}
       className={cn(
         "relative w-full h-full overflow-hidden",
+        isDark ? "bg-neutral-950" : "bg-white",
         className
       )}
     >
-      {/* Base Grid - Static subtle pattern */}
-      <div className="absolute inset-0 pointer-events-none">
-        <GridPattern 
-          offsetX={gridOffsetX} 
-          offsetY={gridOffsetY}
-          isDark={isDark}
-          opacity={isDark ? 0.15 : 0.08}
-        />
+      {/* Base Grid Layer - Always visible, subtle */}
+      <div className={cn(
+        "absolute inset-0",
+        isDark ? "opacity-30" : "opacity-20"
+      )}>
+        <GridPattern offsetX={gridOffsetX} offsetY={gridOffsetY} isDark={isDark} />
       </div>
 
-      {/* Active Grid - Revealed on mouse hover */}
+      {/* Active Grid Layer - Revealed on mouse hover */}
       <motion.div 
-        className="absolute inset-0 pointer-events-none"
-        style={{ maskImage, WebkitMaskImage: maskImage }}
+        className="absolute inset-0"
+        style={{ 
+          maskImage, 
+          WebkitMaskImage: maskImage 
+        }}
       >
-        <GridPattern 
-          offsetX={gridOffsetX} 
-          offsetY={gridOffsetY}
-          isDark={isDark}
-          opacity={isDark ? 0.6 : 0.4}
-          isActive
-        />
+        <GridPattern offsetX={gridOffsetX} offsetY={gridOffsetY} isDark={isDark} isActive />
       </motion.div>
 
-      {/* Gradient overlays for depth */}
+      {/* Gradient Overlays for depth */}
       <div className={cn(
         "absolute inset-0 pointer-events-none",
         isDark 
-          ? "bg-gradient-to-b from-background/0 via-background/50 to-background" 
-          : "bg-gradient-to-b from-background/0 via-background/30 to-background"
-      )} />
-      
-      <div className={cn(
-        "absolute inset-0 pointer-events-none",
-        isDark 
-          ? "bg-gradient-to-r from-background via-transparent to-background" 
-          : "bg-gradient-to-r from-background/50 via-transparent to-background/50"
+          ? "bg-gradient-to-b from-transparent via-neutral-950/50 to-neutral-950" 
+          : "bg-gradient-to-b from-transparent via-white/50 to-white"
       )} />
 
-      {/* Radial glow effect */}
+      <div className={cn(
+        "absolute inset-0 pointer-events-none",
+        isDark 
+          ? "bg-gradient-to-r from-neutral-950 via-transparent to-neutral-950" 
+          : "bg-gradient-to-r from-white via-transparent to-white"
+      )} />
+
       <div className={cn(
         "absolute inset-0 pointer-events-none",
         isDark
-          ? "bg-[radial-gradient(ellipse_at_center,hsl(var(--primary)/0.1)_0%,transparent_70%)]"
-          : "bg-[radial-gradient(ellipse_at_center,hsl(var(--primary)/0.05)_0%,transparent_70%)]"
+          ? "bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(120,119,198,0.15),transparent)]"
+          : "bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(59,130,246,0.1),transparent)]"
       )} />
 
       {/* Content */}
@@ -114,37 +108,28 @@ interface GridPatternProps {
   offsetX: any;
   offsetY: any;
   isDark: boolean;
-  opacity?: number;
   isActive?: boolean;
 }
 
-const GridPattern = ({ offsetX, offsetY, isDark, opacity = 0.2, isActive = false }: GridPatternProps) => {
+const GridPattern = ({ offsetX, offsetY, isDark, isActive = false }: GridPatternProps) => {
   const patternTransform = useTransform(
     [offsetX, offsetY],
     ([x, y]) => `translate(${x}px, ${y}px)`
   );
 
-  // Theme-aware colors
   const strokeColor = isDark 
     ? isActive 
-      ? "rgba(147, 197, 253, 0.8)" // Light blue for dark mode active
-      : "rgba(148, 163, 184, 0.5)" // Slate for dark mode base
+      ? "rgba(99, 102, 241, 0.8)"  // Indigo for dark active
+      : "rgba(255, 255, 255, 0.1)" // White subtle for dark base
     : isActive 
-      ? "rgba(59, 130, 246, 0.6)" // Blue for light mode active
-      : "rgba(148, 163, 184, 0.4)"; // Slate for light mode base
-
-  const glowColor = isDark
-    ? "rgba(147, 197, 253, 0.3)"
-    : "rgba(59, 130, 246, 0.2)";
+      ? "rgba(99, 102, 241, 0.6)"  // Indigo for light active
+      : "rgba(0, 0, 0, 0.08)";     // Black subtle for light base
 
   return (
-    <motion.svg 
-      className="absolute inset-0 w-full h-full"
-      style={{ opacity }}
-    >
+    <svg className="absolute inset-0 w-full h-full">
       <defs>
         <pattern 
-          id={`grid-pattern-${isActive ? 'active' : 'base'}-${isDark ? 'dark' : 'light'}`}
+          id={`grid-${isActive ? 'active' : 'base'}-${isDark ? 'dark' : 'light'}`}
           width="40" 
           height="40" 
           patternUnits="userSpaceOnUse"
@@ -156,34 +141,15 @@ const GridPattern = ({ offsetX, offsetY, isDark, opacity = 0.2, isActive = false
               stroke={strokeColor}
               strokeWidth={isActive ? 1.5 : 1}
             />
-            {isActive && (
-              <>
-                {/* Intersection dots for active grid */}
-                <circle cx="0" cy="0" r="2" fill={glowColor} />
-                <circle cx="40" cy="0" r="2" fill={glowColor} />
-                <circle cx="0" cy="40" r="2" fill={glowColor} />
-                <circle cx="40" cy="40" r="2" fill={glowColor} />
-              </>
-            )}
           </motion.g>
         </pattern>
-        {isActive && (
-          <filter id="glow">
-            <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
-            <feMerge>
-              <feMergeNode in="coloredBlur"/>
-              <feMergeNode in="SourceGraphic"/>
-            </feMerge>
-          </filter>
-        )}
       </defs>
       <rect 
         width="100%" 
         height="100%" 
-        fill={`url(#grid-pattern-${isActive ? 'active' : 'base'}-${isDark ? 'dark' : 'light'})`}
-        filter={isActive ? "url(#glow)" : undefined}
+        fill={`url(#grid-${isActive ? 'active' : 'base'}-${isDark ? 'dark' : 'light'})`}
       />
-    </motion.svg>
+    </svg>
   );
 };
 
