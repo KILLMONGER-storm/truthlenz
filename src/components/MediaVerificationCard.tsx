@@ -7,6 +7,7 @@ import { VerdictGlowCard } from '@/components/ui/verdict-glow-card';
 interface MediaVerificationCardProps {
   verification: MediaVerification;
   verdict: VerdictType;
+  score?: number;
 }
 
 function getVerdictConfig(verdict: MediaVerification['imageVerdict']) {
@@ -144,13 +145,13 @@ function InspectionCategory({
   );
 }
 
-export function MediaVerificationCard({ verification, verdict }: MediaVerificationCardProps) {
+export function MediaVerificationCard({ verification, verdict, score }: MediaVerificationCardProps) {
   const verdictConfig = getVerdictConfig(verification.imageVerdict);
   const VerdictIcon = verdictConfig.icon;
   const hasEnhancedAnalysis = !!verification.analysisDetails;
   
   return (
-    <VerdictGlowCard className="col-span-full" verdict={verdict}>
+    <VerdictGlowCard className="col-span-full" verdict={verdict} score={score}>
       <div className="space-y-6">
       {/* Header with Verdict */}
       <div className="flex items-center justify-between">
