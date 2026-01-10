@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ThemeToggle } from '@/components/ui/theme-toggle';
+import CinematicThemeSwitcher from '@/components/ui/cinematic-theme-switcher';
 import truthLenzLogo from '@/assets/truthlenz-logo.jpg';
 
 export function Header() {
@@ -21,7 +21,7 @@ export function Header() {
           <a href="#" className="hidden md:block text-sm text-muted-foreground hover:text-foreground transition-colors">
             About
           </a>
-          <ThemeToggle />
+          <CinematicThemeSwitcher />
         </nav>
       </div>
     </header>
