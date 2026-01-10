@@ -68,6 +68,8 @@ interface FeedbackRecord {
   original_verdict: string;
   correct_verdict: string;
   user_correction: string;
+  content_type: string;
+  image_base64?: string;
 }
 
 // Generate a simple hash for content matching
@@ -82,7 +84,7 @@ const hashContent = (content: string): string => {
 };
 
 // Fetch relevant feedback from database for similar content
-const getRelevantFeedback = async (content: string): Promise<FeedbackRecord[]> => {
+const getRelevantFeedback = async (content: string, contentType: string): Promise<FeedbackRecord[]> => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -98,7 +100,7 @@ const getRelevantFeedback = async (content: string): Promise<FeedbackRecord[]> =
     // Get exact matches first
     const { data: exactMatches } = await supabase
       .from('verification_feedback')
-      .select('original_content, original_verdict, correct_verdict, user_correction')
+      .select('original_content, original_verdict, correct_verdict, user_correction, content_type, image_base64')
       .eq('content_hash', contentHash)
       .eq('is_correct', false)
       .not('user_correction', 'is', null)
@@ -108,11 +110,12 @@ const getRelevantFeedback = async (content: string): Promise<FeedbackRecord[]> =
       return exactMatches;
     }
     
-    // Get recent corrections to learn from
+    // Get recent corrections for the same content type
     const { data: recentFeedback } = await supabase
       .from('verification_feedback')
-      .select('original_content, original_verdict, correct_verdict, user_correction')
+      .select('original_content, original_verdict, correct_verdict, user_correction, content_type, image_base64')
       .eq('is_correct', false)
+      .eq('content_type', contentType)
       .not('user_correction', 'is', null)
       .order('created_at', { ascending: false })
       .limit(10);
@@ -192,21 +195,33 @@ serve(async (req) => {
 
     console.log(`Verifying content of type: ${type}, length: ${content.length}, hasImage: ${!!imageBase64}`);
 
-    // Fetch relevant feedback
-    const relevantFeedback = await getRelevantFeedback(content);
+    // Fetch relevant feedback including image feedback for training
+    const relevantFeedback = await getRelevantFeedback(content, type);
     let feedbackContext = "";
+    const imageFeedbackExamples: Array<{ image: string; correction: string; correctVerdict: string }> = [];
     
     if (relevantFeedback.length > 0) {
+      // Separate image feedback with actual images for multi-modal training
+      for (const f of relevantFeedback) {
+        if (f.content_type === 'image' && f.image_base64) {
+          imageFeedbackExamples.push({
+            image: f.image_base64,
+            correction: f.user_correction,
+            correctVerdict: f.correct_verdict
+          });
+        }
+      }
+      
       feedbackContext = `
-IMPORTANT: Learn from these user corrections:
+IMPORTANT: Learn from these user corrections on similar content:
 ${relevantFeedback.map((f, i) => `
-Correction ${i + 1}:
+Correction ${i + 1} (${f.content_type}):
 - Original verdict: ${f.original_verdict}
 - Correct verdict: ${f.correct_verdict}
-- Explanation: "${f.user_correction}"
+- User's explanation: "${f.user_correction}"
 `).join('\n')}
-Use these to improve your analysis.`;
-      console.log(`Including ${relevantFeedback.length} feedback records`);
+Use these corrections to improve your analysis and avoid similar mistakes.`;
+      console.log(`Including ${relevantFeedback.length} feedback records (${imageFeedbackExamples.length} with images)`);
     }
 
     let messages: Array<{ role: string; content: string | Array<{ type: string; text?: string; image_url?: { url: string } }> }>;
@@ -311,21 +326,58 @@ Respond with ONLY this JSON structure:
   "reasons": ["reason1", "reason2"]
 }`;
 
+      // Build messages with image feedback examples for training
+      const userContent: Array<{ type: string; text?: string; image_url?: { url: string } }> = [
+        { type: "text", text: imageAnalysisPrompt },
+        { type: "image_url", image_url: { url: imageBase64 } }
+      ];
+      
+      // Add past image feedback as training examples (limit to 2 to avoid token limits)
+      if (imageFeedbackExamples.length > 0) {
+        const trainingPrefix = { 
+          type: "text", 
+          text: "\n\n## TRAINING FROM PAST USER CORRECTIONS:\nThe following are examples of images where users corrected our analysis. Learn from these patterns:\n" 
+        };
+        userContent.push(trainingPrefix);
+        
+        for (const example of imageFeedbackExamples.slice(0, 2)) {
+          userContent.push({ type: "image_url", image_url: { url: example.image } });
+          userContent.push({ 
+            type: "text", 
+            text: `User correction: This image should be "${example.correctVerdict}". Reason: "${example.correction}"\n` 
+          });
+        }
+      }
+
       // Primary model analysis (Gemini 2.5 Pro for best image understanding)
       console.log("Starting primary model analysis (gemini-2.5-pro)...");
       let primaryAnalysis: any;
       try {
-        const primaryResponse = await analyzeImageWithModel(
-          LOVABLE_API_KEY,
-          "google/gemini-2.5-pro",
-          imageBase64,
-          imageAnalysisPrompt
-        );
-        primaryAnalysis = safeParseJSON(primaryResponse);
+        const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-pro",
+            messages: [
+              { 
+                role: "system", 
+                content: "You are an expert forensic image analyst. Learn from user corrections to improve accuracy. Respond with valid JSON only." 
+              },
+              { role: "user", content: userContent }
+            ],
+          }),
+        });
+        
+        if (!response.ok) throw new Error(`Primary model failed: ${response.status}`);
+        const data = await response.json();
+        primaryAnalysis = safeParseJSON(data.choices?.[0]?.message?.content);
         console.log("Primary analysis complete");
       } catch (error) {
         console.error("Primary model failed:", error);
-        // Fallback to flash model
+        // Fallback to flash model with simpler message
         const fallbackResponse = await analyzeImageWithModel(
           LOVABLE_API_KEY,
           "google/gemini-2.5-flash",

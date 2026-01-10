@@ -81,9 +81,11 @@ export interface UserFeedback {
 
 export interface FeedbackSubmission {
   content: string;
+  contentType: 'text' | 'url' | 'image' | 'video';
   originalVerdict: VerdictType;
   originalScore: number;
   isCorrect: boolean;
   userCorrection?: string;
   correctVerdict?: VerdictType;
+  imageBase64?: string;
 }
