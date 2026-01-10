@@ -4,8 +4,8 @@ import { HeroSection } from '@/components/HeroSection';
 import { InputSection } from '@/components/InputSection';
 import { ResultsSection } from '@/components/ResultsSection';
 import { LoadingState } from '@/components/LoadingState';
-import { verifyContent } from '@/lib/verificationApi';
-import type { VerificationInput, VerificationResult, UserFeedback } from '@/types/verification';
+import { verifyContent, submitFeedback } from '@/lib/verificationApi';
+import type { VerificationInput, VerificationResult, UserFeedback, VerdictType } from '@/types/verification';
 import { toast } from 'sonner';
 
 const Index = () => {
@@ -34,15 +34,32 @@ const Index = () => {
     setResult(null);
   };
 
-  const handleFeedback = (isCorrect: boolean) => {
+  const handleFeedback = async (isCorrect: boolean, correction?: string, correctVerdict?: VerdictType) => {
     if (result) {
       const feedback: UserFeedback = {
         resultId: result.id,
         isCorrect,
+        correction,
+        correctVerdict,
         timestamp: new Date(),
       };
       setFeedbackHistory(prev => [...prev, feedback]);
-      toast.success('Feedback recorded. Thank you!');
+      
+      // Submit feedback to database for AI training
+      try {
+        await submitFeedback({
+          content: result.input.content,
+          originalVerdict: result.verdict,
+          originalScore: result.credibilityScore,
+          isCorrect,
+          userCorrection: correction,
+          correctVerdict,
+        });
+        toast.success(isCorrect ? 'Thank you for confirming!' : 'Correction submitted. Our AI will learn from this!');
+      } catch (error) {
+        console.error('Failed to submit feedback:', error);
+        toast.error('Failed to save feedback. Please try again.');
+      }
     }
   };
 
