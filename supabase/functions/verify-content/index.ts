@@ -9,6 +9,7 @@ interface VerificationRequest {
   content: string;
   type: 'text' | 'url' | 'image' | 'video';
   mediaDescription?: string;
+  imageBase64?: string;
 }
 
 interface TextAnalysis {
@@ -39,17 +40,68 @@ serve(async (req) => {
   }
 
   try {
-    const { content, type, mediaDescription } = await req.json() as VerificationRequest;
+    const { content, type, mediaDescription, imageBase64 } = await req.json() as VerificationRequest;
     
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    console.log(`Verifying content of type: ${type}, length: ${content.length}`);
+    console.log(`Verifying content of type: ${type}, length: ${content.length}, hasImage: ${!!imageBase64}`);
 
-    // AI Analysis for text classification
-    const textAnalysisPrompt = `You are a misinformation detection expert. Analyze the following content and classify it.
+    // Build messages array based on content type
+    let messages: Array<{ role: string; content: string | Array<{ type: string; text?: string; image_url?: { url: string } }> }>;
+    
+    if (type === 'image' && imageBase64) {
+      // Use vision capabilities for image analysis
+      const imageAnalysisPrompt = `You are a misinformation and fake image detection expert. Analyze this image carefully.
+
+${content ? `Context provided by user: "${content}"` : 'No additional context provided.'}
+${mediaDescription ? `Filename: ${mediaDescription}` : ''}
+
+Analyze this image for:
+1. Signs of digital manipulation (artifacts, inconsistent lighting, unnatural edges, AI-generated patterns)
+2. Whether this appears to be a real photograph or AI-generated/manipulated
+3. Any text visible in the image and whether it appears authentic
+4. Whether the image could be misleading or taken out of context
+5. Any recognizable elements that could help verify authenticity
+
+Respond with ONLY a valid JSON object (no markdown, no code blocks) in this exact format:
+{
+  "verdict": "reliable" | "misleading" | "fake",
+  "reasons": ["reason1", "reason2", ...],
+  "sensationalLanguage": [],
+  "emotionalPatterns": [],
+  "mainClaim": "Description of what the image shows and any claims it makes",
+  "factCheckResult": "confirmed" | "disputed" | "false" | "unverified",
+  "credibilityScore": 0-100,
+  "explanation": "A plain-English explanation of the image analysis",
+  "imageAnalysis": {
+    "description": "Detailed description of what the image shows",
+    "isManipulated": true/false,
+    "manipulationSigns": ["sign1", "sign2"],
+    "isAiGenerated": true/false,
+    "aiGenerationSigns": ["sign1", "sign2"],
+    "contextIssues": ["issue1", "issue2"]
+  }
+}`;
+
+      messages = [
+        { 
+          role: "system", 
+          content: "You are an expert at detecting fake, manipulated, and AI-generated images. Always respond with valid JSON only, no markdown formatting." 
+        },
+        { 
+          role: "user", 
+          content: [
+            { type: "text", text: imageAnalysisPrompt },
+            { type: "image_url", image_url: { url: imageBase64 } }
+          ]
+        }
+      ];
+    } else {
+      // Text-based analysis
+      const textAnalysisPrompt = `You are a misinformation detection expert. Analyze the following content and classify it.
 
 Content to analyze:
 """
@@ -80,6 +132,12 @@ Look for:
 - Excessive punctuation or capitalization
 - Logical fallacies or conspiracy language`;
 
+      messages = [
+        { role: "system", content: "You are a misinformation detection expert. Always respond with valid JSON only, no markdown formatting." },
+        { role: "user", content: textAnalysisPrompt }
+      ];
+    }
+
     const textAnalysisResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -87,11 +145,8 @@ Look for:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: "You are a misinformation detection expert. Always respond with valid JSON only, no markdown formatting." },
-          { role: "user", content: textAnalysisPrompt }
-        ],
+        model: "google/gemini-2.5-flash",
+        messages,
       }),
     });
 
@@ -169,12 +224,18 @@ Look for:
     // Media verification for image/video types
     let mediaVerification: MediaVerification | undefined;
     if (type === 'image' || type === 'video') {
+      const imageAnalysis = analysis.imageAnalysis;
       mediaVerification = {
-        description: mediaDescription || `Uploaded ${type} content`,
+        description: imageAnalysis?.description || mediaDescription || `Uploaded ${type} content`,
         isReused: false,
-        manipulationDetected: false,
+        reusedFrom: undefined,
+        manipulationDetected: imageAnalysis?.isManipulated || imageAnalysis?.isAiGenerated || false,
         matchesClaim: true,
-        flags: [],
+        flags: [
+          ...(imageAnalysis?.manipulationSigns || []),
+          ...(imageAnalysis?.aiGenerationSigns || []),
+          ...(imageAnalysis?.contextIssues || []),
+        ],
       };
     }
 
