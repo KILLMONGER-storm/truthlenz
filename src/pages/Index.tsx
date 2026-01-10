@@ -11,13 +11,22 @@ import { toast } from 'sonner';
 const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<VerificationResult | null>(null);
-  const [feedbackHistory, setFeedbackHistory] = useState<UserFeedback[]>([]);
+  const [currentImageBase64, setCurrentImageBase64] = useState<string | undefined>();
+  const [feedbackHistory, setFeedbackHistory] = useState<UserFeedback[]>();
 
   const handleVerify = async (input: VerificationInput) => {
     setIsLoading(true);
     setResult(null);
+    setCurrentImageBase64(undefined);
     
     try {
+      // Store image base64 for potential feedback submission
+      if (input.file && input.type === 'image') {
+        const reader = new FileReader();
+        reader.onload = () => setCurrentImageBase64(reader.result as string);
+        reader.readAsDataURL(input.file);
+      }
+      
       // Simulate network delay for realistic UX
       await new Promise(resolve => setTimeout(resolve, 500));
       const verificationResult = await verifyContent(input);
@@ -32,6 +41,7 @@ const Index = () => {
 
   const handleNewVerification = () => {
     setResult(null);
+    setCurrentImageBase64(undefined);
   };
 
   const handleFeedback = async (isCorrect: boolean, correction?: string, correctVerdict?: VerdictType) => {
@@ -43,17 +53,19 @@ const Index = () => {
         correctVerdict,
         timestamp: new Date(),
       };
-      setFeedbackHistory(prev => [...prev, feedback]);
+      setFeedbackHistory(prev => [...(prev || []), feedback]);
       
       // Submit feedback to database for AI training
       try {
         await submitFeedback({
           content: result.input.content,
+          contentType: result.input.type,
           originalVerdict: result.verdict,
           originalScore: result.credibilityScore,
           isCorrect,
           userCorrection: correction,
           correctVerdict,
+          imageBase64: result.input.type === 'image' ? currentImageBase64 : undefined,
         });
         toast.success(isCorrect ? 'Thank you for confirming!' : 'Correction submitted. Our AI will learn from this!');
       } catch (error) {

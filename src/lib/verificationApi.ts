@@ -79,16 +79,23 @@ const hashContent = (content: string): string => {
 export const submitFeedback = async (feedback: FeedbackSubmission): Promise<void> => {
   const contentHash = hashContent(feedback.content);
   
+  // For images, include the base64 data for AI training (limit to ~500KB)
+  const imageBase64ForStorage = feedback.imageBase64 && feedback.imageBase64.length < 700000 
+    ? feedback.imageBase64 
+    : undefined;
+  
   const { error } = await supabase
     .from('verification_feedback')
     .insert({
       content_hash: contentHash,
-      original_content: feedback.content.substring(0, 5000), // Limit stored content
+      original_content: feedback.content.substring(0, 5000),
+      content_type: feedback.contentType,
       original_verdict: feedback.originalVerdict,
       original_score: feedback.originalScore,
       is_correct: feedback.isCorrect,
       user_correction: feedback.userCorrection,
       correct_verdict: feedback.correctVerdict,
+      image_base64: imageBase64ForStorage,
     });
 
   if (error) {
