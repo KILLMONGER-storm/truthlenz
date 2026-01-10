@@ -1,11 +1,12 @@
-import type { MediaVerification, ImageInspectionDetail } from '@/types/verification';
+import type { MediaVerification, ImageInspectionDetail, VerdictType } from '@/types/verification';
 import { Image, AlertTriangle, CheckCircle, Clock, Wand2, Search, Brain, Eye, Fingerprint, ShieldCheck, ShieldAlert, ShieldX, Users, Box, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
-import { GlowCard } from '@/components/ui/glow-card';
+import { VerdictGlowCard } from '@/components/ui/verdict-glow-card';
 
 interface MediaVerificationCardProps {
   verification: MediaVerification;
+  verdict: VerdictType;
 }
 
 function getVerdictConfig(verdict: MediaVerification['imageVerdict']) {
@@ -143,13 +144,13 @@ function InspectionCategory({
   );
 }
 
-export function MediaVerificationCard({ verification }: MediaVerificationCardProps) {
+export function MediaVerificationCard({ verification, verdict }: MediaVerificationCardProps) {
   const verdictConfig = getVerdictConfig(verification.imageVerdict);
   const VerdictIcon = verdictConfig.icon;
   const hasEnhancedAnalysis = !!verification.analysisDetails;
   
   return (
-    <GlowCard className="col-span-full">
+    <VerdictGlowCard className="col-span-full" verdict={verdict}>
       <div className="space-y-6">
       {/* Header with Verdict */}
       <div className="flex items-center justify-between">
@@ -432,6 +433,6 @@ export function MediaVerificationCard({ verification }: MediaVerificationCardPro
         </div>
       )}
       </div>
-    </GlowCard>
+    </VerdictGlowCard>
   );
 }

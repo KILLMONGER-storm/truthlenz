@@ -1,16 +1,17 @@
-import type { TextAnalysis } from '@/types/verification';
+import type { TextAnalysis, VerdictType } from '@/types/verification';
 import { FileText, AlertCircle, CheckCircle } from 'lucide-react';
-import { GlowCard } from '@/components/ui/glow-card';
+import { VerdictGlowCard } from '@/components/ui/verdict-glow-card';
 
 interface TextAnalysisCardProps {
   analysis: TextAnalysis;
+  verdict: VerdictType;
 }
 
-export function TextAnalysisCard({ analysis }: TextAnalysisCardProps) {
+export function TextAnalysisCard({ analysis, verdict }: TextAnalysisCardProps) {
   const hasIssues = analysis.sensationalLanguage.length > 0 || analysis.emotionalPatterns.length > 0;
   
   return (
-    <GlowCard>
+    <VerdictGlowCard verdict={verdict}>
       <div className="flex items-center gap-3 mb-4">
         <div className="p-2 bg-primary/10 rounded-lg">
           <FileText className="w-5 h-5 text-primary" />
@@ -73,6 +74,6 @@ export function TextAnalysisCard({ analysis }: TextAnalysisCardProps) {
           </div>
         )}
       </div>
-    </GlowCard>
+    </VerdictGlowCard>
   );
 }

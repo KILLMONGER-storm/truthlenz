@@ -3,11 +3,10 @@ import { FactCheckCard } from './FactCheckCard';
 import { MediaVerificationCard } from './MediaVerificationCard';
 import { TextAnalysisCard } from './TextAnalysisCard';
 import { FeedbackButtons } from './FeedbackButtons';
-import type { VerificationResult } from '@/types/verification';
+import type { VerificationResult, VerdictType } from '@/types/verification';
 import { ArrowLeft, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { GlowCard } from '@/components/ui/glow-card';
-import type { VerdictType } from '@/types/verification';
+import { VerdictGlowCard } from '@/components/ui/verdict-glow-card';
 
 interface ResultsSectionProps {
   result: VerificationResult;
@@ -36,7 +35,7 @@ export function ResultsSection({ result, onNewVerification, onFeedback }: Result
       
       {/* Main Score Card */}
       <div className="mb-6 animate-slide-up" style={{ animationDelay: '0.1s' }}>
-        <GlowCard className="rounded-3xl">
+        <VerdictGlowCard className="rounded-3xl" verdict={result.verdict}>
           <div className="flex flex-col lg:flex-row items-center gap-8 p-2">
             <CredibilityScore score={result.credibilityScore} verdict={result.verdict} size="lg" />
             
@@ -47,22 +46,22 @@ export function ResultsSection({ result, onNewVerification, onFeedback }: Result
               </p>
             </div>
           </div>
-        </GlowCard>
+        </VerdictGlowCard>
       </div>
       
       {/* Analysis Cards Grid */}
       <div className="grid md:grid-cols-2 gap-6 mb-8">
         <div className="animate-slide-up" style={{ animationDelay: '0.2s' }}>
-          <TextAnalysisCard analysis={result.textAnalysis} />
+          <TextAnalysisCard analysis={result.textAnalysis} verdict={result.verdict} />
         </div>
         
         <div className="animate-slide-up" style={{ animationDelay: '0.3s' }}>
-          <FactCheckCard claim={result.claimExtraction} />
+          <FactCheckCard claim={result.claimExtraction} verdict={result.verdict} />
         </div>
         
         {result.mediaVerification && (
           <div className="md:col-span-2 animate-slide-up" style={{ animationDelay: '0.4s' }}>
-            <MediaVerificationCard verification={result.mediaVerification} />
+            <MediaVerificationCard verification={result.mediaVerification} verdict={result.verdict} />
           </div>
         )}
       </div>
