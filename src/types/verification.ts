@@ -21,6 +21,13 @@ export interface ClaimExtraction {
   sources: string[];
 }
 
+export interface ImageInspectionDetail {
+  category: string;
+  finding: string;
+  confidence: number;
+  severity: 'low' | 'medium' | 'high';
+}
+
 export interface MediaVerification {
   description: string;
   isReused: boolean;
@@ -28,6 +35,28 @@ export interface MediaVerification {
   manipulationDetected: boolean;
   matchesClaim: boolean;
   flags: string[];
+  // Enhanced image analysis fields
+  authenticityScore?: number;
+  imageVerdict?: 'real' | 'edited' | 'ai_generated' | 'suspicious';
+  analysisDetails?: {
+    pixelAnalysis?: ImageInspectionDetail[];
+    textureAnalysis?: ImageInspectionDetail[];
+    semanticAnalysis?: ImageInspectionDetail[];
+    brandAuthenticity?: ImageInspectionDetail[];
+    humanAnalysis?: ImageInspectionDetail[];
+    crossMatchResults?: {
+      hasOnlineMatch: boolean;
+      matchConfidence: number;
+      possibleSources: string[];
+    };
+    modelAgreement?: {
+      primaryVerdict: string;
+      secondaryVerdict: string;
+      agreementLevel: 'high' | 'medium' | 'low';
+      confidenceAdjustment: string;
+    };
+  };
+  inspectionHighlights?: string[];
 }
 
 export interface VerificationResult {
