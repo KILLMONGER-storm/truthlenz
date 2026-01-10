@@ -5,6 +5,7 @@ import { VerdictGlowCard } from '@/components/ui/verdict-glow-card';
 interface FactCheckCardProps {
   claim: ClaimExtraction;
   verdict: VerdictType;
+  score?: number;
 }
 
 const resultConfig = {
@@ -34,12 +35,12 @@ const resultConfig = {
   },
 };
 
-export function FactCheckCard({ claim, verdict }: FactCheckCardProps) {
+export function FactCheckCard({ claim, verdict, score }: FactCheckCardProps) {
   const config = resultConfig[claim.factCheckResult];
   const Icon = config.icon;
   
   return (
-    <VerdictGlowCard verdict={verdict}>
+    <VerdictGlowCard verdict={verdict} score={score}>
       <div className="flex items-center gap-3 mb-4">
         <div className="p-2 bg-primary/10 rounded-lg">
           <Search className="w-5 h-5 text-primary" />
