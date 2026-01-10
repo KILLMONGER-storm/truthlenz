@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -34,6 +35,67 @@ interface MediaVerification {
   flags: string[];
 }
 
+interface FeedbackRecord {
+  original_content: string;
+  original_verdict: string;
+  correct_verdict: string;
+  user_correction: string;
+}
+
+// Generate a simple hash for content matching
+const hashContent = (content: string): string => {
+  let hash = 0;
+  for (let i = 0; i < content.length; i++) {
+    const char = content.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return hash.toString(16);
+};
+
+// Fetch relevant feedback from database for similar content
+const getRelevantFeedback = async (content: string): Promise<FeedbackRecord[]> => {
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    
+    if (!supabaseUrl || !supabaseKey) {
+      console.log("Supabase credentials not available for feedback lookup");
+      return [];
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    const contentHash = hashContent(content);
+    
+    // Get exact matches first
+    const { data: exactMatches } = await supabase
+      .from('verification_feedback')
+      .select('original_content, original_verdict, correct_verdict, user_correction')
+      .eq('content_hash', contentHash)
+      .eq('is_correct', false)
+      .not('user_correction', 'is', null)
+      .limit(3);
+    
+    if (exactMatches && exactMatches.length > 0) {
+      return exactMatches;
+    }
+    
+    // Get recent corrections to learn from (last 20 corrections)
+    const { data: recentFeedback } = await supabase
+      .from('verification_feedback')
+      .select('original_content, original_verdict, correct_verdict, user_correction')
+      .eq('is_correct', false)
+      .not('user_correction', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(10);
+    
+    return recentFeedback || [];
+  } catch (error) {
+    console.error("Error fetching feedback:", error);
+    return [];
+  }
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -49,6 +111,25 @@ serve(async (req) => {
 
     console.log(`Verifying content of type: ${type}, length: ${content.length}, hasImage: ${!!imageBase64}`);
 
+    // Fetch relevant feedback to include in the AI prompt
+    const relevantFeedback = await getRelevantFeedback(content);
+    let feedbackContext = "";
+    
+    if (relevantFeedback.length > 0) {
+      feedbackContext = `
+
+IMPORTANT: Learn from these user corrections on similar content:
+${relevantFeedback.map((f, i) => `
+Correction ${i + 1}:
+- Original AI verdict: ${f.original_verdict}
+- User said correct verdict should be: ${f.correct_verdict}
+- User's explanation: "${f.user_correction}"
+`).join('\n')}
+
+Use these corrections to improve your analysis and avoid similar mistakes.`;
+      console.log(`Including ${relevantFeedback.length} feedback records for AI training`);
+    }
+
     // Build messages array based on content type
     let messages: Array<{ role: string; content: string | Array<{ type: string; text?: string; image_url?: { url: string } }> }>;
     
@@ -58,6 +139,7 @@ serve(async (req) => {
 
 ${content ? `Context provided by user: "${content}"` : 'No additional context provided.'}
 ${mediaDescription ? `Filename: ${mediaDescription}` : ''}
+${feedbackContext}
 
 Analyze this image for:
 1. Signs of digital manipulation (artifacts, inconsistent lighting, unnatural edges, AI-generated patterns)
@@ -107,6 +189,7 @@ Content to analyze:
 """
 ${content}
 """
+${feedbackContext}
 
 Analyze this content and respond with ONLY a valid JSON object (no markdown, no code blocks) in this exact format:
 {

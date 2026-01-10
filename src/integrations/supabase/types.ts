@@ -14,7 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      verification_feedback: {
+        Row: {
+          content_hash: string
+          correct_verdict: string | null
+          created_at: string
+          id: string
+          is_correct: boolean
+          original_content: string
+          original_score: number
+          original_verdict: string
+          user_correction: string | null
+        }
+        Insert: {
+          content_hash: string
+          correct_verdict?: string | null
+          created_at?: string
+          id?: string
+          is_correct: boolean
+          original_content: string
+          original_score: number
+          original_verdict: string
+          user_correction?: string | null
+        }
+        Update: {
+          content_hash?: string
+          correct_verdict?: string | null
+          created_at?: string
+          id?: string
+          is_correct?: boolean
+          original_content?: string
+          original_score?: number
+          original_verdict?: string
+          user_correction?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

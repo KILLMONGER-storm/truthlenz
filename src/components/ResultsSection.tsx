@@ -7,10 +7,12 @@ import type { VerificationResult } from '@/types/verification';
 import { ArrowLeft, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
+import type { VerdictType } from '@/types/verification';
+
 interface ResultsSectionProps {
   result: VerificationResult;
   onNewVerification: () => void;
-  onFeedback: (isCorrect: boolean) => void;
+  onFeedback: (isCorrect: boolean, correction?: string, correctVerdict?: VerdictType) => void;
 }
 
 export function ResultsSection({ result, onNewVerification, onFeedback }: ResultsSectionProps) {
@@ -65,7 +67,7 @@ export function ResultsSection({ result, onNewVerification, onFeedback }: Result
       
       {/* Feedback Section */}
       <div className="animate-slide-up" style={{ animationDelay: '0.5s' }}>
-        <FeedbackButtons onFeedback={onFeedback} />
+        <FeedbackButtons onFeedback={onFeedback} currentVerdict={result.verdict} />
       </div>
     </div>
   );
