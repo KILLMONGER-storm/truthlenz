@@ -1,4 +1,5 @@
 import { Shield } from 'lucide-react';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 export function Header() {
   return (
@@ -11,13 +12,14 @@ export function Header() {
           <span className="text-xl font-bold">TruthGuard</span>
         </div>
         
-        <nav className="hidden md:flex items-center gap-6">
-          <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+        <nav className="flex items-center gap-6">
+          <a href="#" className="hidden md:block text-sm text-muted-foreground hover:text-foreground transition-colors">
             How It Works
           </a>
-          <a href="#" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <a href="#" className="hidden md:block text-sm text-muted-foreground hover:text-foreground transition-colors">
             About
           </a>
+          <ThemeToggle />
         </nav>
       </div>
     </header>
