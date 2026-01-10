@@ -1,9 +1,9 @@
 import { useState, useRef } from 'react';
 import { FileText, Link, Image, Video, Upload, X, Search } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { GlowCard } from '@/components/ui/spotlight-card';
+import { StardustButton } from '@/components/ui/stardust-button';
 import type { VerificationType, VerificationInput } from '@/types/verification';
 
 interface InputSectionProps {
@@ -180,25 +180,23 @@ export function InputSection({ onVerify, isLoading }: InputSectionProps) {
       </GlowCard>
       
       {/* Submit Button */}
-      <div className="mt-6 flex justify-center">
-        <Button
+      <div className="mt-8 flex justify-center">
+        <StardustButton
           onClick={handleSubmit}
           disabled={!isValid() || isLoading}
-          size="lg"
-          className="px-8 py-6 text-lg font-semibold rounded-full shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50"
         >
           {isLoading ? (
-            <>
-              <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin mr-2" />
+            <span className="flex items-center gap-2">
+              <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
               Analyzing...
-            </>
+            </span>
           ) : (
-            <>
-              <Search className="w-5 h-5 mr-2" />
+            <span className="flex items-center gap-2">
+              <Search className="w-5 h-5" />
               Verify Content
-            </>
+            </span>
           )}
-        </Button>
+        </StardustButton>
       </div>
     </div>
   );
