@@ -110,7 +110,7 @@ const Index = () => {
           </>
         )}
         
-        {isLoading && <LoadingState onComplete={handleLoadingComplete} />}
+        {isLoading && <LoadingState onComplete={handleLoadingComplete} isDataReady={!!pendingResult} />}
         
         {result && !isLoading && (
           <ResultsSection
