@@ -6,7 +6,7 @@ import { FeedbackButtons } from './FeedbackButtons';
 import type { VerificationResult } from '@/types/verification';
 import { ArrowLeft, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-
+import { GlowCard } from '@/components/ui/glow-card';
 import type { VerdictType } from '@/types/verification';
 
 interface ResultsSectionProps {
@@ -35,17 +35,19 @@ export function ResultsSection({ result, onNewVerification, onFeedback }: Result
       </div>
       
       {/* Main Score Card */}
-      <div className="glass-card rounded-3xl p-8 mb-6 animate-slide-up" style={{ animationDelay: '0.1s' }}>
-        <div className="flex flex-col lg:flex-row items-center gap-8">
-          <CredibilityScore score={result.credibilityScore} verdict={result.verdict} size="lg" />
-          
-          <div className="flex-1 text-center lg:text-left">
-            <h2 className="text-2xl font-bold mb-3">Verification Complete</h2>
-            <p className="text-lg text-muted-foreground leading-relaxed">
-              {result.explanation}
-            </p>
+      <div className="mb-6 animate-slide-up" style={{ animationDelay: '0.1s' }}>
+        <GlowCard className="rounded-3xl">
+          <div className="flex flex-col lg:flex-row items-center gap-8 p-2">
+            <CredibilityScore score={result.credibilityScore} verdict={result.verdict} size="lg" />
+            
+            <div className="flex-1 text-center lg:text-left">
+              <h2 className="text-2xl font-bold mb-3">Verification Complete</h2>
+              <p className="text-lg text-muted-foreground leading-relaxed">
+                {result.explanation}
+              </p>
+            </div>
           </div>
-        </div>
+        </GlowCard>
       </div>
       
       {/* Analysis Cards Grid */}
