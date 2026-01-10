@@ -38,6 +38,23 @@
 
     --radius: 0.75rem;
 
+    /* Neobrutalist Button Variables */
+    --main: hsl(215 90% 35%);
+    --overlay: rgba(0, 0, 0, 0.8);
+    --bg: hsl(210 20% 98%);
+    --bw: #fff;
+    --blank: #000;
+    --neo-border: #000;
+    --neo-text: #000;
+    --mtext: #fff;
+    --neo-ring: #000;
+    --ring-offset: #fff;
+    --box-shadow-x: 4px;
+    --box-shadow-y: 4px;
+    --reverse-box-shadow-x: -4px;
+    --reverse-box-shadow-y: -4px;
+    --neo-shadow: var(--box-shadow-x) var(--box-shadow-y) 0px 0px var(--neo-border);
+
     /* Credibility Colors */
     --reliable: 145 65% 42%;
     --reliable-bg: 145 50% 95%;
@@ -71,6 +88,20 @@
   }
 
   .dark {
+    --background: 215 30% 8%;
+    --foreground: 210 20% 95%;
+
+    /* Dark mode neobrutalist variables */
+    --main: hsl(215 80% 55%);
+    --bg: hsl(215 30% 8%);
+    --bw: #212121;
+    --blank: #fff;
+    --neo-border: #fff;
+    --neo-text: #e6e6e6;
+    --mtext: #000;
+    --neo-ring: #fff;
+    --ring-offset: #000;
+    --neo-shadow: var(--box-shadow-x) var(--box-shadow-y) 0px 0px var(--neo-border);
     --background: 215 30% 8%;
     --foreground: 210 20% 95%;
 
