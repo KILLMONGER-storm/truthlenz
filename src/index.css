@@ -201,6 +201,50 @@
   .input-focus:focus-within {
     box-shadow: 0 0 0 3px hsl(var(--ring) / 0.15);
   }
+
+  /* 3D Retro Text Effect */
+  .retro-3d-text {
+    text-shadow: 
+      1px 1px 0 hsl(215 90% 30%),
+      2px 2px 0 hsl(215 85% 28%),
+      3px 3px 0 hsl(215 80% 26%),
+      4px 4px 0 hsl(215 75% 24%),
+      5px 5px 0 hsl(215 70% 22%),
+      6px 6px 10px rgba(0, 0, 0, 0.3);
+    transform: perspective(500px) rotateX(5deg);
+    transition: transform 0.3s ease, text-shadow 0.3s ease;
+  }
+
+  .retro-3d-text:hover {
+    transform: perspective(500px) rotateX(0deg) scale(1.02);
+    text-shadow: 
+      1px 1px 0 hsl(215 90% 35%),
+      2px 2px 0 hsl(215 85% 32%),
+      3px 3px 0 hsl(215 80% 30%),
+      4px 4px 0 hsl(215 75% 28%),
+      5px 5px 0 hsl(215 70% 26%),
+      8px 8px 15px rgba(0, 0, 0, 0.25);
+  }
+
+  .dark .retro-3d-text {
+    text-shadow: 
+      1px 1px 0 hsl(215 80% 45%),
+      2px 2px 0 hsl(215 75% 40%),
+      3px 3px 0 hsl(215 70% 35%),
+      4px 4px 0 hsl(215 65% 30%),
+      5px 5px 0 hsl(215 60% 25%),
+      6px 6px 10px rgba(0, 0, 0, 0.5);
+  }
+
+  .dark .retro-3d-text:hover {
+    text-shadow: 
+      1px 1px 0 hsl(215 80% 50%),
+      2px 2px 0 hsl(215 75% 45%),
+      3px 3px 0 hsl(215 70% 40%),
+      4px 4px 0 hsl(215 65% 35%),
+      5px 5px 0 hsl(215 60% 30%),
+      8px 8px 15px rgba(0, 0, 0, 0.4);
+  }
 }
 
 @layer utilities {
