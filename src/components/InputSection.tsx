@@ -3,6 +3,7 @@ import { FileText, Link, Image, Video, Upload, X, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
+import { GlowCard } from '@/components/ui/spotlight-card';
 import type { VerificationType, VerificationInput } from '@/types/verification';
 
 interface InputSectionProps {
@@ -94,83 +95,89 @@ export function InputSection({ onVerify, isLoading }: InputSectionProps) {
         ))}
       </div>
       
-      {/* Input Area */}
-      <div className="glass-card rounded-2xl p-6 input-focus">
-        {activeType === 'text' && (
-          <Textarea
-            placeholder="Paste news article, forwarded message, or any text you want to verify..."
-            value={textContent}
-            onChange={(e) => setTextContent(e.target.value)}
-            className="min-h-[180px] resize-none border-0 bg-transparent text-base focus-visible:ring-0 placeholder:text-muted-foreground/60"
-          />
-        )}
-        
-        {activeType === 'url' && (
-          <div className="flex items-center gap-3">
-            <div className="flex-1">
-              <Input
-                type="url"
-                placeholder="https://example.com/news-article"
-                value={urlContent}
-                onChange={(e) => setUrlContent(e.target.value)}
-                className="border-0 bg-transparent text-base h-12 focus-visible:ring-0 placeholder:text-muted-foreground/60"
+      {/* Input Area with GlowCard */}
+      <GlowCard 
+        customSize 
+        glowColor="blue" 
+        className="w-full !aspect-auto !grid-rows-1"
+      >
+        <div className="relative z-10">
+          {activeType === 'text' && (
+            <Textarea
+              placeholder="Paste news article, forwarded message, or any text you want to verify..."
+              value={textContent}
+              onChange={(e) => setTextContent(e.target.value)}
+              className="min-h-[180px] resize-none border-0 bg-transparent text-base focus-visible:ring-0 placeholder:text-muted-foreground/60"
+            />
+          )}
+          
+          {activeType === 'url' && (
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <Input
+                  type="url"
+                  placeholder="https://example.com/news-article"
+                  value={urlContent}
+                  onChange={(e) => setUrlContent(e.target.value)}
+                  className="border-0 bg-transparent text-base h-12 focus-visible:ring-0 placeholder:text-muted-foreground/60"
+                />
+              </div>
+            </div>
+          )}
+          
+          {(activeType === 'image' || activeType === 'video') && (
+            <div className="space-y-4">
+              {!uploadedFile ? (
+                <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-muted-foreground/30 rounded-xl cursor-pointer hover:border-primary/50 transition-colors">
+                  <Upload className="w-10 h-10 text-muted-foreground mb-2" />
+                  <span className="text-sm text-muted-foreground">
+                    Click to upload {activeType}
+                  </span>
+                  <span className="text-xs text-muted-foreground/60 mt-1">
+                    {activeType === 'image' ? 'PNG, JPG, WEBP up to 10MB' : 'MP4, MOV up to 50MB'}
+                  </span>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept={activeType === 'image' ? 'image/*' : 'video/*'}
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
+                </label>
+              ) : (
+                <div className="flex items-center justify-between p-4 bg-muted/50 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    {activeType === 'image' ? (
+                      <Image className="w-8 h-8 text-primary" />
+                    ) : (
+                      <Video className="w-8 h-8 text-primary" />
+                    )}
+                    <div>
+                      <p className="font-medium text-sm">{uploadedFile.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={removeFile}
+                    className="p-2 hover:bg-background/50 rounded-full transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+              
+              <Textarea
+                placeholder="Add context or describe the claim associated with this media (optional)..."
+                value={mediaDescription}
+                onChange={(e) => setMediaDescription(e.target.value)}
+                className="min-h-[80px] resize-none border-0 bg-transparent text-base focus-visible:ring-0 placeholder:text-muted-foreground/60"
               />
             </div>
-          </div>
-        )}
-        
-        {(activeType === 'image' || activeType === 'video') && (
-          <div className="space-y-4">
-            {!uploadedFile ? (
-              <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-muted-foreground/30 rounded-xl cursor-pointer hover:border-primary/50 transition-colors">
-                <Upload className="w-10 h-10 text-muted-foreground mb-2" />
-                <span className="text-sm text-muted-foreground">
-                  Click to upload {activeType}
-                </span>
-                <span className="text-xs text-muted-foreground/60 mt-1">
-                  {activeType === 'image' ? 'PNG, JPG, WEBP up to 10MB' : 'MP4, MOV up to 50MB'}
-                </span>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept={activeType === 'image' ? 'image/*' : 'video/*'}
-                  onChange={handleFileUpload}
-                  className="hidden"
-                />
-              </label>
-            ) : (
-              <div className="flex items-center justify-between p-4 bg-muted rounded-xl">
-                <div className="flex items-center gap-3">
-                  {activeType === 'image' ? (
-                    <Image className="w-8 h-8 text-primary" />
-                  ) : (
-                    <Video className="w-8 h-8 text-primary" />
-                  )}
-                  <div>
-                    <p className="font-medium text-sm">{uploadedFile.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={removeFile}
-                  className="p-2 hover:bg-background rounded-full transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-            
-            <Textarea
-              placeholder="Add context or describe the claim associated with this media (optional)..."
-              value={mediaDescription}
-              onChange={(e) => setMediaDescription(e.target.value)}
-              className="min-h-[80px] resize-none border-0 bg-transparent text-base focus-visible:ring-0 placeholder:text-muted-foreground/60"
-            />
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      </GlowCard>
       
       {/* Submit Button */}
       <div className="mt-6 flex justify-center">
