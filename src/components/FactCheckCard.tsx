@@ -1,5 +1,6 @@
 import type { ClaimExtraction } from '@/types/verification';
 import { Search, CheckCircle, XCircle, AlertTriangle, HelpCircle } from 'lucide-react';
+import { GlowCard } from '@/components/ui/glow-card';
 
 interface FactCheckCardProps {
   claim: ClaimExtraction;
@@ -37,7 +38,7 @@ export function FactCheckCard({ claim }: FactCheckCardProps) {
   const Icon = config.icon;
   
   return (
-    <div className="glass-card rounded-2xl p-6 h-full">
+    <GlowCard>
       <div className="flex items-center gap-3 mb-4">
         <div className="p-2 bg-primary/10 rounded-lg">
           <Search className="w-5 h-5 text-primary" />
@@ -80,6 +81,6 @@ export function FactCheckCard({ claim }: FactCheckCardProps) {
           </div>
         )}
       </div>
-    </div>
+    </GlowCard>
   );
 }
