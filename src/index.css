@@ -230,6 +230,10 @@
     );
     background-size: 200% 100%;
   }
+
+  .animate-shadanim {
+    animation: shadanim 15s linear infinite;
+  }
 }
 
 @keyframes scoreFill {
@@ -276,5 +280,14 @@
   }
   100% {
     background-position: -200% 0;
+  }
+}
+
+@keyframes shadanim {
+  0% {
+    background-position: 100% -100%;
+  }
+  100% {
+    background-position: 0% 100%;
   }
 }
