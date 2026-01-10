@@ -35,7 +35,7 @@ export function ResultsSection({ result, onNewVerification, onFeedback }: Result
       
       {/* Main Score Card */}
       <div className="mb-6 animate-slide-up" style={{ animationDelay: '0.1s' }}>
-        <VerdictGlowCard className="rounded-3xl" verdict={result.verdict}>
+        <VerdictGlowCard className="rounded-3xl" verdict={result.verdict} score={result.credibilityScore}>
           <div className="flex flex-col lg:flex-row items-center gap-8 p-2">
             <CredibilityScore score={result.credibilityScore} verdict={result.verdict} size="lg" />
             
@@ -52,16 +52,16 @@ export function ResultsSection({ result, onNewVerification, onFeedback }: Result
       {/* Analysis Cards Grid */}
       <div className="grid md:grid-cols-2 gap-6 mb-8">
         <div className="animate-slide-up" style={{ animationDelay: '0.2s' }}>
-          <TextAnalysisCard analysis={result.textAnalysis} verdict={result.verdict} />
+          <TextAnalysisCard analysis={result.textAnalysis} verdict={result.verdict} score={result.credibilityScore} />
         </div>
         
         <div className="animate-slide-up" style={{ animationDelay: '0.3s' }}>
-          <FactCheckCard claim={result.claimExtraction} verdict={result.verdict} />
+          <FactCheckCard claim={result.claimExtraction} verdict={result.verdict} score={result.credibilityScore} />
         </div>
         
         {result.mediaVerification && (
           <div className="md:col-span-2 animate-slide-up" style={{ animationDelay: '0.4s' }}>
-            <MediaVerificationCard verification={result.mediaVerification} verdict={result.verdict} />
+            <MediaVerificationCard verification={result.mediaVerification} verdict={result.verdict} score={result.credibilityScore} />
           </div>
         )}
       </div>

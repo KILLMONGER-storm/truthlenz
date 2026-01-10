@@ -5,13 +5,14 @@ import { VerdictGlowCard } from '@/components/ui/verdict-glow-card';
 interface TextAnalysisCardProps {
   analysis: TextAnalysis;
   verdict: VerdictType;
+  score?: number;
 }
 
-export function TextAnalysisCard({ analysis, verdict }: TextAnalysisCardProps) {
+export function TextAnalysisCard({ analysis, verdict, score }: TextAnalysisCardProps) {
   const hasIssues = analysis.sensationalLanguage.length > 0 || analysis.emotionalPatterns.length > 0;
   
   return (
-    <VerdictGlowCard verdict={verdict}>
+    <VerdictGlowCard verdict={verdict} score={score}>
       <div className="flex items-center gap-3 mb-4">
         <div className="p-2 bg-primary/10 rounded-lg">
           <FileText className="w-5 h-5 text-primary" />
