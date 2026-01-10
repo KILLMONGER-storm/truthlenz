@@ -652,16 +652,92 @@ Respond with JSON only:
       });
 
     } else {
-      // Text-based analysis (existing logic)
-      const textAnalysisPrompt = `You are a misinformation detection expert. Analyze the following content and classify it.
+      // Text-based analysis with real web search using Gemini
+      const GEMINI_API_KEY = Deno.env.get("geminiapikey");
+      
+      if (!GEMINI_API_KEY) {
+        throw new Error("Gemini API key is not configured");
+      }
 
-Content to analyze:
+      console.log("Starting web search verification with Gemini...");
+
+      // Step 1: Use Gemini with Google Search grounding to find real sources
+      const searchPrompt = `Search the web for information about this claim and verify if it's been reported by reliable sources:
+
+"${content}"
+
+Find:
+1. Whether this exact claim or similar claims appear on reliable news sources
+2. The credibility and reputation of sources mentioning this
+3. Any fact-checks or debunking of this claim
+4. The original source if identifiable
+
+Report your findings with specific sources and URLs.`;
+
+      const searchResponse = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: searchPrompt }] }],
+            tools: [{ googleSearch: {} }],
+          }),
+        }
+      );
+
+      if (!searchResponse.ok) {
+        const status = searchResponse.status;
+        console.error("Gemini search error:", status);
+        if (status === 429) {
+          return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
+            status: 429,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        throw new Error(`Gemini search failed: ${status}`);
+      }
+
+      const searchData = await searchResponse.json();
+      const searchResults = searchData.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      const groundingMetadata = searchData.candidates?.[0]?.groundingMetadata;
+      
+      // Extract sources from grounding metadata
+      const webSources: string[] = [];
+      if (groundingMetadata?.groundingChunks) {
+        for (const chunk of groundingMetadata.groundingChunks) {
+          if (chunk.web?.uri) {
+            webSources.push(chunk.web.uri);
+          }
+        }
+      }
+      
+      console.log(`Found ${webSources.length} web sources for verification`);
+
+      // Step 2: Analyze the search results to make a verdict
+      const analysisPrompt = `You are a misinformation detection expert. Based on web search results, analyze this content.
+
+ORIGINAL CLAIM:
 """
 ${content}
 """
+
+WEB SEARCH RESULTS:
+"""
+${searchResults}
+"""
+
+SOURCES FOUND: ${webSources.length > 0 ? webSources.slice(0, 5).join(", ") : "No specific sources found"}
+
 ${feedbackContext}
 
-Analyze this content and respond with ONLY a valid JSON object (no markdown, no code blocks) in this exact format:
+Analyze based on these criteria:
+- If NO sources found or only unreliable sources: verdict should be "fake" or "misleading" with low credibility
+- If sources are mixed or from tabloids/social media only: "misleading" 
+- If multiple reliable sources (major news outlets, official sources, fact-checkers) confirm: "reliable"
+- If fact-checkers have debunked this: "fake"
+
+Respond with ONLY valid JSON (no markdown, no code blocks):
 {
   "verdict": "reliable" | "misleading" | "fake",
   "reasons": ["reason1", "reason2", ...],
@@ -670,50 +746,34 @@ Analyze this content and respond with ONLY a valid JSON object (no markdown, no 
   "mainClaim": "One sentence summary of the main claim",
   "factCheckResult": "confirmed" | "disputed" | "false" | "unverified",
   "credibilityScore": 0-100,
-  "explanation": "A plain-English explanation of why this content has this credibility score"
+  "explanation": "A plain-English explanation including what sources were found (or not found) and why this affects credibility",
+  "sourcesAnalysis": {
+    "reliableSources": ["list of reliable sources found"],
+    "unreliableSources": ["list of unreliable/questionable sources"],
+    "factChecks": ["any fact-check articles found"],
+    "noSourcesFound": true/false
+  }
 }
 
-Classification criteria:
-- "reliable" (score 70-100): Factual, balanced language, verifiable claims
-- "misleading" (score 40-69): Some errors, sensational language, missing context
-- "fake" (score 0-39): False claims, manipulation, no credible sources`;
+IMPORTANT: If no reliable sources confirm this claim, the credibility score should be LOW (under 40) and indicate "Insufficient information - likely fake or unverified".`;
 
-      messages = [
-        { role: "system", content: "You are a misinformation detection expert. Always respond with valid JSON only." },
-        { role: "user", content: textAnalysisPrompt }
-      ];
-
-      const textAnalysisResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages,
-        }),
-      });
-
-      if (!textAnalysisResponse.ok) {
-        const status = textAnalysisResponse.status;
-        if (status === 429) {
-          return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
-            status: 429,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
+      const analysisResponse = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: analysisPrompt }] }],
+          }),
         }
-        if (status === 402) {
-          return new Response(JSON.stringify({ error: "AI credits exhausted. Please add funds to continue." }), {
-            status: 402,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        throw new Error(`AI analysis failed: ${status}`);
+      );
+
+      if (!analysisResponse.ok) {
+        throw new Error(`Gemini analysis failed: ${analysisResponse.status}`);
       }
 
-      const aiData = await textAnalysisResponse.json();
-      const aiContent = aiData.choices?.[0]?.message?.content;
+      const analysisData = await analysisResponse.json();
+      const aiContent = analysisData.candidates?.[0]?.content?.parts?.[0]?.text;
       
       if (!aiContent) {
         throw new Error("No response from AI model");
@@ -724,15 +784,27 @@ Classification criteria:
         analysis = safeParseJSON(aiContent);
       } catch (parseError) {
         console.error("Failed to parse AI response:", parseError);
+        // If we couldn't find sources earlier, default to low credibility
+        const noSourcesFound = webSources.length === 0;
         analysis = {
-          verdict: "unverified" as const,
-          reasons: ["Unable to fully analyze content"],
+          verdict: noSourcesFound ? "fake" : "misleading",
+          reasons: noSourcesFound 
+            ? ["No reliable sources found for this claim", "Content could not be verified through web search"]
+            : ["Unable to fully analyze content"],
           sensationalLanguage: [],
           emotionalPatterns: [],
           mainClaim: content.substring(0, 100),
           factCheckResult: "unverified",
-          credibilityScore: 50,
-          explanation: "Analysis could not be completed."
+          credibilityScore: noSourcesFound ? 15 : 40,
+          explanation: noSourcesFound 
+            ? "This claim could not be verified - no reliable sources were found reporting this information. Exercise extreme caution."
+            : "Analysis could not be completed.",
+          sourcesAnalysis: {
+            reliableSources: [],
+            unreliableSources: [],
+            factChecks: [],
+            noSourcesFound
+          }
         };
       }
 
@@ -743,15 +815,28 @@ Classification criteria:
         emotionalPatterns: analysis.emotionalPatterns || [],
       };
 
+      // Build sources list from both grounding metadata and analysis
+      const allSources = [
+        ...webSources.slice(0, 3),
+        ...(analysis.sourcesAnalysis?.reliableSources || []).slice(0, 2),
+        ...(analysis.sourcesAnalysis?.factChecks || []).slice(0, 2),
+      ].filter((s, i, arr) => arr.indexOf(s) === i).slice(0, 5);
+
       const claimExtraction: ClaimExtraction = {
         mainClaim: analysis.mainClaim || "Unable to extract main claim",
         factCheckResult: analysis.factCheckResult || 'unverified',
-        sources: ['AI Analysis'],
+        sources: allSources.length > 0 ? allSources : ['No reliable sources found - Web Search Verification'],
       };
 
       const credibilityScore = analysis.credibilityScore ?? 
         (textAnalysis.verdict === 'reliable' ? 85 : 
          textAnalysis.verdict === 'misleading' ? 55 : 25);
+
+      // Enhance explanation with source information
+      let explanation = analysis.explanation || `Content classified as ${textAnalysis.verdict}.`;
+      if (analysis.sourcesAnalysis?.noSourcesFound || webSources.length === 0) {
+        explanation = `⚠️ INSUFFICIENT INFORMATION: ${explanation}`;
+      }
 
       const result = {
         id: crypto.randomUUID(),
@@ -759,9 +844,11 @@ Classification criteria:
         verdict: textAnalysis.verdict,
         textAnalysis,
         claimExtraction,
-        explanation: analysis.explanation || `Content classified as ${textAnalysis.verdict}.`,
+        explanation,
         timestamp: new Date().toISOString(),
       };
+
+      console.log(`Web search verification complete. Sources found: ${webSources.length}, Verdict: ${textAnalysis.verdict}`);
 
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
