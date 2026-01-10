@@ -201,6 +201,23 @@
   .input-focus:focus-within {
     box-shadow: 0 0 0 3px hsl(var(--ring) / 0.15);
   }
+
+  .pattern-text-shimmer {
+    background-size: 300% 300%;
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    background-image: 
+      linear-gradient(115deg, transparent 20%, #3b82f6 50%, transparent 80%, transparent 100%),
+      linear-gradient(#1e3a5f, #1e3a5f);
+    animation: shadanim 15s linear infinite;
+  }
+
+  .dark .pattern-text-shimmer {
+    background-image: 
+      linear-gradient(115deg, transparent 20%, #60a5fa 50%, transparent 80%, transparent 100%),
+      linear-gradient(#93c5fd, #93c5fd);
+  }
 }
 
 @layer utilities {
