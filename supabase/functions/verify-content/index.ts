@@ -26,6 +26,13 @@ interface ClaimExtraction {
   sources: string[];
 }
 
+interface ImageInspectionDetail {
+  category: string;
+  finding: string;
+  confidence: number;
+  severity: 'low' | 'medium' | 'high';
+}
+
 interface MediaVerification {
   description: string;
   isReused: boolean;
@@ -33,6 +40,27 @@ interface MediaVerification {
   manipulationDetected: boolean;
   matchesClaim: boolean;
   flags: string[];
+  authenticityScore?: number;
+  imageVerdict?: 'real' | 'edited' | 'ai_generated' | 'suspicious';
+  analysisDetails?: {
+    pixelAnalysis?: ImageInspectionDetail[];
+    textureAnalysis?: ImageInspectionDetail[];
+    semanticAnalysis?: ImageInspectionDetail[];
+    brandAuthenticity?: ImageInspectionDetail[];
+    humanAnalysis?: ImageInspectionDetail[];
+    crossMatchResults?: {
+      hasOnlineMatch: boolean;
+      matchConfidence: number;
+      possibleSources: string[];
+    };
+    modelAgreement?: {
+      primaryVerdict: string;
+      secondaryVerdict: string;
+      agreementLevel: 'high' | 'medium' | 'low';
+      confidenceAdjustment: string;
+    };
+  };
+  inspectionHighlights?: string[];
 }
 
 interface FeedbackRecord {
@@ -80,7 +108,7 @@ const getRelevantFeedback = async (content: string): Promise<FeedbackRecord[]> =
       return exactMatches;
     }
     
-    // Get recent corrections to learn from (last 20 corrections)
+    // Get recent corrections to learn from
     const { data: recentFeedback } = await supabase
       .from('verification_feedback')
       .select('original_content, original_verdict, correct_verdict, user_correction')
@@ -94,6 +122,59 @@ const getRelevantFeedback = async (content: string): Promise<FeedbackRecord[]> =
     console.error("Error fetching feedback:", error);
     return [];
   }
+};
+
+// Call AI model for image analysis
+const analyzeImageWithModel = async (
+  apiKey: string,
+  model: string,
+  imageBase64: string,
+  prompt: string
+): Promise<any> => {
+  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { 
+          role: "system", 
+          content: "You are an expert forensic image analyst specializing in detecting AI-generated, manipulated, and fake images. Respond with valid JSON only." 
+        },
+        { 
+          role: "user", 
+          content: [
+            { type: "text", text: prompt },
+            { type: "image_url", image_url: { url: imageBase64 } }
+          ]
+        }
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Model ${model} failed with status ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content;
+};
+
+// Parse JSON safely
+const safeParseJSON = (content: string): any => {
+  let cleanedContent = content.trim();
+  if (cleanedContent.startsWith("```json")) {
+    cleanedContent = cleanedContent.slice(7);
+  } else if (cleanedContent.startsWith("```")) {
+    cleanedContent = cleanedContent.slice(3);
+  }
+  if (cleanedContent.endsWith("```")) {
+    cleanedContent = cleanedContent.slice(0, -3);
+  }
+  return JSON.parse(cleanedContent.trim());
 };
 
 serve(async (req) => {
@@ -111,78 +192,269 @@ serve(async (req) => {
 
     console.log(`Verifying content of type: ${type}, length: ${content.length}, hasImage: ${!!imageBase64}`);
 
-    // Fetch relevant feedback to include in the AI prompt
+    // Fetch relevant feedback
     const relevantFeedback = await getRelevantFeedback(content);
     let feedbackContext = "";
     
     if (relevantFeedback.length > 0) {
       feedbackContext = `
-
-IMPORTANT: Learn from these user corrections on similar content:
+IMPORTANT: Learn from these user corrections:
 ${relevantFeedback.map((f, i) => `
 Correction ${i + 1}:
-- Original AI verdict: ${f.original_verdict}
-- User said correct verdict should be: ${f.correct_verdict}
-- User's explanation: "${f.user_correction}"
+- Original verdict: ${f.original_verdict}
+- Correct verdict: ${f.correct_verdict}
+- Explanation: "${f.user_correction}"
 `).join('\n')}
-
-Use these corrections to improve your analysis and avoid similar mistakes.`;
-      console.log(`Including ${relevantFeedback.length} feedback records for AI training`);
+Use these to improve your analysis.`;
+      console.log(`Including ${relevantFeedback.length} feedback records`);
     }
 
-    // Build messages array based on content type
     let messages: Array<{ role: string; content: string | Array<{ type: string; text?: string; image_url?: { url: string } }> }>;
     
     if (type === 'image' && imageBase64) {
-      // Use vision capabilities for image analysis
-      const imageAnalysisPrompt = `You are a misinformation and fake image detection expert. Analyze this image carefully.
+      // Comprehensive multi-level image analysis prompt
+      const imageAnalysisPrompt = `You are a forensic image analyst. Perform comprehensive analysis of this image.
 
-${content ? `Context provided by user: "${content}"` : 'No additional context provided.'}
+${content ? `Context: "${content}"` : ''}
 ${mediaDescription ? `Filename: ${mediaDescription}` : ''}
 ${feedbackContext}
 
-Analyze this image for:
-1. Signs of digital manipulation (artifacts, inconsistent lighting, unnatural edges, AI-generated patterns)
-2. Whether this appears to be a real photograph or AI-generated/manipulated
-3. Any text visible in the image and whether it appears authentic
-4. Whether the image could be misleading or taken out of context
-5. Any recognizable elements that could help verify authenticity
+## REQUIRED ANALYSIS LEVELS:
 
-Respond with ONLY a valid JSON object (no markdown, no code blocks) in this exact format:
+### 1. PIXEL-LEVEL ANALYSIS
+- Check for compression artifacts inconsistencies
+- Analyze noise patterns across the image
+- Detect cloning/copy-paste regions
+- Look for resolution mismatches between elements
+- Check for JPEG ghost artifacts from re-saving
+
+### 2. TEXTURE ANALYSIS
+- Skin texture consistency (pores, noise patterns, lighting gradients)
+- Fabric weave realism (jerseys, clothing texture, embroidery edges)
+- Surface material authenticity (metal, wood, glass reflections)
+- Hair strand naturalness and consistency
+- Background texture coherence
+
+### 3. SEMANTIC ANALYSIS
+- Shadow direction and consistency
+- Lighting source coherence across all objects
+- Perspective and vanishing point accuracy
+- Scale proportions of objects
+- Physical plausibility of the scene
+
+### 4. BRAND & OBJECT AUTHENTICITY
+- Logo geometry accuracy (shape distortion, symmetry errors)
+- Typography/font accuracy on visible text
+- Color accuracy of known brands
+- Proportions of branded objects
+- Detail level consistency with authentic items
+
+### 5. HUMAN ANALYSIS (if people present)
+- Facial micro-details (skin pores, wrinkles, asymmetries)
+- Eye reflection consistency and realism
+- Ear symmetry and detail
+- Hand/finger proportions and detail
+- Hair-to-skin boundary naturalness
+- Teeth detail and alignment
+
+### 6. AI GENERATION DETECTION
+- Common AI artifacts (melted fingers, asymmetric features)
+- Unnatural smoothness or over-sharpening
+- Repetitive patterns in backgrounds
+- Inconsistent detail levels
+- Text/letter rendering issues
+- "Uncanny valley" facial features
+
+### 7. CROSS-MATCH ASSESSMENT
+- Does this appear to be a unique photo or potentially reused?
+- Signs of image splicing from multiple sources
+- Metadata consistency indicators
+
+Respond with ONLY this JSON structure:
 {
+  "imageVerdict": "real" | "edited" | "ai_generated" | "suspicious",
+  "authenticityScore": 0-100,
+  "description": "What the image depicts",
+  "explanation": "Plain-English summary of findings prioritizing the most significant issues",
+  "analysisDetails": {
+    "pixelAnalysis": [
+      {"category": "Compression", "finding": "description", "confidence": 0-100, "severity": "low|medium|high"}
+    ],
+    "textureAnalysis": [
+      {"category": "Skin/Fabric/Surface", "finding": "description", "confidence": 0-100, "severity": "low|medium|high"}
+    ],
+    "semanticAnalysis": [
+      {"category": "Shadows/Lighting/Perspective", "finding": "description", "confidence": 0-100, "severity": "low|medium|high"}
+    ],
+    "brandAuthenticity": [
+      {"category": "Logo/Text/Brand", "finding": "description", "confidence": 0-100, "severity": "low|medium|high"}
+    ],
+    "humanAnalysis": [
+      {"category": "Face/Body/Features", "finding": "description", "confidence": 0-100, "severity": "low|medium|high"}
+    ],
+    "crossMatchResults": {
+      "hasOnlineMatch": true|false,
+      "matchConfidence": 0-100,
+      "possibleSources": ["source1", "source2"]
+    }
+  },
+  "inspectionHighlights": ["Key finding 1", "Key finding 2", "Key finding 3"],
+  "flags": ["Warning 1", "Warning 2"],
+  "isManipulated": true|false,
+  "manipulationSigns": ["sign1", "sign2"],
+  "isAiGenerated": true|false,
+  "aiGenerationSigns": ["sign1", "sign2"],
   "verdict": "reliable" | "misleading" | "fake",
-  "reasons": ["reason1", "reason2", ...],
-  "sensationalLanguage": [],
-  "emotionalPatterns": [],
-  "mainClaim": "Description of what the image shows and any claims it makes",
-  "factCheckResult": "confirmed" | "disputed" | "false" | "unverified",
   "credibilityScore": 0-100,
-  "explanation": "A plain-English explanation of the image analysis",
-  "imageAnalysis": {
-    "description": "Detailed description of what the image shows",
-    "isManipulated": true/false,
-    "manipulationSigns": ["sign1", "sign2"],
-    "isAiGenerated": true/false,
-    "aiGenerationSigns": ["sign1", "sign2"],
-    "contextIssues": ["issue1", "issue2"]
-  }
+  "mainClaim": "What the image claims to show",
+  "factCheckResult": "confirmed" | "disputed" | "false" | "unverified",
+  "reasons": ["reason1", "reason2"]
 }`;
 
-      messages = [
-        { 
-          role: "system", 
-          content: "You are an expert at detecting fake, manipulated, and AI-generated images. Always respond with valid JSON only, no markdown formatting." 
-        },
-        { 
-          role: "user", 
-          content: [
-            { type: "text", text: imageAnalysisPrompt },
-            { type: "image_url", image_url: { url: imageBase64 } }
-          ]
+      // Primary model analysis (Gemini 2.5 Pro for best image understanding)
+      console.log("Starting primary model analysis (gemini-2.5-pro)...");
+      let primaryAnalysis: any;
+      try {
+        const primaryResponse = await analyzeImageWithModel(
+          LOVABLE_API_KEY,
+          "google/gemini-2.5-pro",
+          imageBase64,
+          imageAnalysisPrompt
+        );
+        primaryAnalysis = safeParseJSON(primaryResponse);
+        console.log("Primary analysis complete");
+      } catch (error) {
+        console.error("Primary model failed:", error);
+        // Fallback to flash model
+        const fallbackResponse = await analyzeImageWithModel(
+          LOVABLE_API_KEY,
+          "google/gemini-2.5-flash",
+          imageBase64,
+          imageAnalysisPrompt
+        );
+        primaryAnalysis = safeParseJSON(fallbackResponse);
+      }
+
+      // Secondary model for cross-verification (Gemini Flash for speed)
+      console.log("Starting secondary model verification (gemini-2.5-flash)...");
+      let secondaryAnalysis: any = null;
+      let modelAgreement: any = null;
+      
+      try {
+        const secondaryPrompt = `Quickly analyze this image for authenticity. Is it: real, edited, or AI-generated?
+Respond with JSON only:
+{
+  "verdict": "real" | "edited" | "ai_generated" | "suspicious",
+  "confidence": 0-100,
+  "keyReasons": ["reason1", "reason2", "reason3"]
+}`;
+        
+        const secondaryResponse = await analyzeImageWithModel(
+          LOVABLE_API_KEY,
+          "google/gemini-2.5-flash",
+          imageBase64,
+          secondaryPrompt
+        );
+        secondaryAnalysis = safeParseJSON(secondaryResponse);
+        console.log("Secondary analysis complete");
+
+        // Calculate model agreement
+        const verdictMatch = primaryAnalysis.imageVerdict === secondaryAnalysis.verdict;
+        let agreementLevel: 'high' | 'medium' | 'low' = 'high';
+        let confidenceAdjustment = "Models agree - high confidence";
+
+        if (!verdictMatch) {
+          const primaryIsReal = primaryAnalysis.imageVerdict === 'real';
+          const secondaryIsReal = secondaryAnalysis.verdict === 'real';
+          
+          if (primaryIsReal !== secondaryIsReal) {
+            agreementLevel = 'low';
+            confidenceAdjustment = "Models disagree significantly - confidence reduced, flagged for review";
+            // Reduce authenticity score when models disagree
+            primaryAnalysis.authenticityScore = Math.max(20, primaryAnalysis.authenticityScore - 25);
+          } else {
+            agreementLevel = 'medium';
+            confidenceAdjustment = "Models partially agree - moderate confidence";
+            primaryAnalysis.authenticityScore = Math.max(30, primaryAnalysis.authenticityScore - 10);
+          }
         }
-      ];
+
+        modelAgreement = {
+          primaryVerdict: primaryAnalysis.imageVerdict,
+          secondaryVerdict: secondaryAnalysis.verdict,
+          agreementLevel,
+          confidenceAdjustment
+        };
+      } catch (error) {
+        console.error("Secondary model failed:", error);
+        modelAgreement = {
+          primaryVerdict: primaryAnalysis.imageVerdict,
+          secondaryVerdict: "unavailable",
+          agreementLevel: 'medium' as const,
+          confidenceAdjustment: "Single model analysis - secondary verification unavailable"
+        };
+      }
+
+      // Add model agreement to analysis details
+      if (primaryAnalysis.analysisDetails) {
+        primaryAnalysis.analysisDetails.modelAgreement = modelAgreement;
+      } else {
+        primaryAnalysis.analysisDetails = { modelAgreement };
+      }
+
+      // Build the response
+      const textAnalysis: TextAnalysis = {
+        verdict: primaryAnalysis.verdict || (primaryAnalysis.imageVerdict === 'real' ? 'reliable' : 
+                 primaryAnalysis.imageVerdict === 'suspicious' ? 'misleading' : 'fake'),
+        reasons: primaryAnalysis.reasons || [],
+        sensationalLanguage: [],
+        emotionalPatterns: [],
+      };
+
+      const claimExtraction: ClaimExtraction = {
+        mainClaim: primaryAnalysis.mainClaim || primaryAnalysis.description || "Image analysis",
+        factCheckResult: primaryAnalysis.factCheckResult || 'unverified',
+        sources: ['Multi-Model AI Analysis', 'Pixel-Level Inspection', 'Semantic Verification'],
+      };
+
+      const mediaVerification: MediaVerification = {
+        description: primaryAnalysis.description || `Analyzed ${mediaDescription || 'uploaded image'}`,
+        isReused: primaryAnalysis.analysisDetails?.crossMatchResults?.hasOnlineMatch || false,
+        reusedFrom: primaryAnalysis.analysisDetails?.crossMatchResults?.possibleSources?.[0],
+        manipulationDetected: primaryAnalysis.isManipulated || primaryAnalysis.isAiGenerated || false,
+        matchesClaim: primaryAnalysis.imageVerdict === 'real',
+        flags: [
+          ...(primaryAnalysis.flags || []),
+          ...(primaryAnalysis.manipulationSigns || []),
+          ...(primaryAnalysis.aiGenerationSigns || []),
+        ],
+        authenticityScore: primaryAnalysis.authenticityScore,
+        imageVerdict: primaryAnalysis.imageVerdict,
+        analysisDetails: primaryAnalysis.analysisDetails,
+        inspectionHighlights: primaryAnalysis.inspectionHighlights || [],
+      };
+
+      const credibilityScore = primaryAnalysis.credibilityScore ?? primaryAnalysis.authenticityScore ?? 50;
+
+      const result = {
+        id: crypto.randomUUID(),
+        credibilityScore,
+        verdict: textAnalysis.verdict,
+        textAnalysis,
+        claimExtraction,
+        mediaVerification,
+        explanation: primaryAnalysis.explanation || `Image classified as ${primaryAnalysis.imageVerdict}.`,
+        timestamp: new Date().toISOString(),
+      };
+
+      console.log("Image verification complete, authenticity score:", primaryAnalysis.authenticityScore);
+
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+
     } else {
-      // Text-based analysis
+      // Text-based analysis (existing logic)
       const textAnalysisPrompt = `You are a misinformation detection expert. Analyze the following content and classify it.
 
 Content to analyze:
@@ -204,144 +476,99 @@ Analyze this content and respond with ONLY a valid JSON object (no markdown, no 
 }
 
 Classification criteria:
-- "reliable" (score 70-100): Factual, balanced language, verifiable claims, credible sources
-- "misleading" (score 40-69): Some factual errors, sensational language, missing context
-- "fake" (score 0-39): False claims, heavy manipulation, no credible sources
-
-Look for:
-- Sensational language (shocking, breaking, you won't believe, etc.)
-- Emotional manipulation (outrage, fear, anger-inducing phrases)
-- Unverified claims or lack of sources
-- Excessive punctuation or capitalization
-- Logical fallacies or conspiracy language`;
+- "reliable" (score 70-100): Factual, balanced language, verifiable claims
+- "misleading" (score 40-69): Some errors, sensational language, missing context
+- "fake" (score 0-39): False claims, manipulation, no credible sources`;
 
       messages = [
-        { role: "system", content: "You are a misinformation detection expert. Always respond with valid JSON only, no markdown formatting." },
+        { role: "system", content: "You are a misinformation detection expert. Always respond with valid JSON only." },
         { role: "user", content: textAnalysisPrompt }
       ];
-    }
 
-    const textAnalysisResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages,
-      }),
-    });
+      const textAnalysisResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages,
+        }),
+      });
 
-    if (!textAnalysisResponse.ok) {
-      const status = textAnalysisResponse.status;
-      if (status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+      if (!textAnalysisResponse.ok) {
+        const status = textAnalysisResponse.status;
+        if (status === 429) {
+          return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
+            status: 429,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (status === 402) {
+          return new Response(JSON.stringify({ error: "AI credits exhausted. Please add funds to continue." }), {
+            status: 402,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        throw new Error(`AI analysis failed: ${status}`);
       }
-      if (status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add funds to continue." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const errorText = await textAnalysisResponse.text();
-      console.error("AI gateway error:", status, errorText);
-      throw new Error(`AI analysis failed: ${status}`);
-    }
 
-    const aiData = await textAnalysisResponse.json();
-    const aiContent = aiData.choices?.[0]?.message?.content;
-    
-    if (!aiContent) {
-      throw new Error("No response from AI model");
-    }
-
-    console.log("AI Response:", aiContent);
-
-    // Parse the AI response
-    let analysis;
-    try {
-      // Clean the response - remove markdown code blocks if present
-      let cleanedContent = aiContent.trim();
-      if (cleanedContent.startsWith("```json")) {
-        cleanedContent = cleanedContent.slice(7);
-      } else if (cleanedContent.startsWith("```")) {
-        cleanedContent = cleanedContent.slice(3);
+      const aiData = await textAnalysisResponse.json();
+      const aiContent = aiData.choices?.[0]?.message?.content;
+      
+      if (!aiContent) {
+        throw new Error("No response from AI model");
       }
-      if (cleanedContent.endsWith("```")) {
-        cleanedContent = cleanedContent.slice(0, -3);
+
+      let analysis;
+      try {
+        analysis = safeParseJSON(aiContent);
+      } catch (parseError) {
+        console.error("Failed to parse AI response:", parseError);
+        analysis = {
+          verdict: "unverified" as const,
+          reasons: ["Unable to fully analyze content"],
+          sensationalLanguage: [],
+          emotionalPatterns: [],
+          mainClaim: content.substring(0, 100),
+          factCheckResult: "unverified",
+          credibilityScore: 50,
+          explanation: "Analysis could not be completed."
+        };
       }
-      analysis = JSON.parse(cleanedContent.trim());
-    } catch (parseError) {
-      console.error("Failed to parse AI response:", parseError);
-      // Fallback analysis if parsing fails
-      analysis = {
-        verdict: "unverified" as const,
-        reasons: ["Unable to fully analyze content"],
-        sensationalLanguage: [],
-        emotionalPatterns: [],
-        mainClaim: content.substring(0, 100) + (content.length > 100 ? "..." : ""),
-        factCheckResult: "unverified",
-        credibilityScore: 50,
-        explanation: "Analysis could not be completed. Please try again."
+
+      const textAnalysis: TextAnalysis = {
+        verdict: analysis.verdict || 'misleading',
+        reasons: analysis.reasons || [],
+        sensationalLanguage: analysis.sensationalLanguage || [],
+        emotionalPatterns: analysis.emotionalPatterns || [],
       };
-    }
 
-    // Build the response
-    const textAnalysis: TextAnalysis = {
-      verdict: analysis.verdict || 'misleading',
-      reasons: analysis.reasons || [],
-      sensationalLanguage: analysis.sensationalLanguage || [],
-      emotionalPatterns: analysis.emotionalPatterns || [],
-    };
-
-    const claimExtraction: ClaimExtraction = {
-      mainClaim: analysis.mainClaim || "Unable to extract main claim",
-      factCheckResult: analysis.factCheckResult || 'unverified',
-      sources: analysis.sources || ['AI Analysis', 'Pattern Recognition'],
-    };
-
-    // Media verification for image/video types
-    let mediaVerification: MediaVerification | undefined;
-    if (type === 'image' || type === 'video') {
-      const imageAnalysis = analysis.imageAnalysis;
-      mediaVerification = {
-        description: imageAnalysis?.description || mediaDescription || `Uploaded ${type} content`,
-        isReused: false,
-        reusedFrom: undefined,
-        manipulationDetected: imageAnalysis?.isManipulated || imageAnalysis?.isAiGenerated || false,
-        matchesClaim: true,
-        flags: [
-          ...(imageAnalysis?.manipulationSigns || []),
-          ...(imageAnalysis?.aiGenerationSigns || []),
-          ...(imageAnalysis?.contextIssues || []),
-        ],
+      const claimExtraction: ClaimExtraction = {
+        mainClaim: analysis.mainClaim || "Unable to extract main claim",
+        factCheckResult: analysis.factCheckResult || 'unverified',
+        sources: ['AI Analysis'],
       };
+
+      const credibilityScore = analysis.credibilityScore ?? 
+        (textAnalysis.verdict === 'reliable' ? 85 : 
+         textAnalysis.verdict === 'misleading' ? 55 : 25);
+
+      const result = {
+        id: crypto.randomUUID(),
+        credibilityScore,
+        verdict: textAnalysis.verdict,
+        textAnalysis,
+        claimExtraction,
+        explanation: analysis.explanation || `Content classified as ${textAnalysis.verdict}.`,
+        timestamp: new Date().toISOString(),
+      };
+
+      return new Response(JSON.stringify(result), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
-
-    const credibilityScore = analysis.credibilityScore ?? 
-      (textAnalysis.verdict === 'reliable' ? 85 : 
-       textAnalysis.verdict === 'misleading' ? 55 : 25);
-
-    const result = {
-      id: crypto.randomUUID(),
-      credibilityScore,
-      verdict: textAnalysis.verdict,
-      textAnalysis,
-      claimExtraction,
-      mediaVerification,
-      explanation: analysis.explanation || `This content has been classified as ${textAnalysis.verdict}.`,
-      timestamp: new Date().toISOString(),
-    };
-
-    console.log("Verification complete, score:", credibilityScore);
-
-    return new Response(JSON.stringify(result), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
   } catch (error) {
     console.error("Verification error:", error);
     return new Response(
