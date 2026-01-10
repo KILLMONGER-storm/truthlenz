@@ -102,7 +102,7 @@ const Index = () => {
       <footer className="border-t border-border py-8 mt-12">
         <div className="container max-w-6xl mx-auto px-4 text-center text-sm text-muted-foreground">
           <p>
-            TruthGuard uses AI to help identify misinformation. Results are not 100% accurate. 
+            TruthLenz uses AI to help identify misinformation. Results are not 100% accurate. 
             Always verify information from multiple trusted sources.
           </p>
         </div>
