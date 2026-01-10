@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 interface StardustButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children?: React.ReactNode;
   className?: string;
+  showStars?: boolean;
 }
 
 export const StardustButton: React.FC<StardustButtonProps> = ({ 
@@ -11,6 +12,7 @@ export const StardustButton: React.FC<StardustButtonProps> = ({
   onClick, 
   className = "",
   disabled,
+  showStars = true,
   ...props 
 }) => {
   const buttonStyle: React.CSSProperties = {
@@ -141,8 +143,8 @@ export const StardustButton: React.FC<StardustButtonProps> = ({
       >
         <div className="wrap" style={wrapStyle}>
           <p style={pStyle}>
-            <span>✧</span>
-            <span>✦</span>
+            {showStars && <span>✧</span>}
+            {showStars && <span>✦</span>}
             {children}
           </p>
         </div>
