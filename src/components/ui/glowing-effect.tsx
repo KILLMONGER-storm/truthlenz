@@ -122,9 +122,10 @@ const GlowingEffect = memo(
       <>
         <div
           className={cn(
-            "pointer-events-none absolute -inset-px hidden rounded-[inherit] border opacity-0 transition-opacity",
-            glow && "opacity-100",
+            "pointer-events-none absolute -inset-px rounded-[inherit] border opacity-0 transition-opacity",
+            glow && "opacity-100 block",
             variant === "white" && "border-white",
+            variant === "default" && "border-primary/50",
             disabled && "!hidden"
           )}
           style={{
