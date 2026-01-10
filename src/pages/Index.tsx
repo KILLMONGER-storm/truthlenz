@@ -4,6 +4,7 @@ import { HeroSection } from '@/components/HeroSection';
 import { InputSection } from '@/components/InputSection';
 import { ResultsSection } from '@/components/ResultsSection';
 import { LoadingState } from '@/components/LoadingState';
+import { InfiniteGrid } from '@/components/ui/the-infinite-grid';
 import { verifyContent, submitFeedback } from '@/lib/verificationApi';
 import type { VerificationInput, VerificationResult, UserFeedback, VerdictType } from '@/types/verification';
 import { toast } from 'sonner';
@@ -76,10 +77,15 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative">
+      {/* Infinite Grid Background */}
+      <div className="fixed inset-0 -z-10">
+        <InfiniteGrid className="w-full h-full" />
+      </div>
+      
       <Header />
       
-      <main className="container max-w-6xl mx-auto px-4 py-12">
+      <main className="container max-w-6xl mx-auto px-4 py-12 relative z-10">
         {!result && !isLoading && (
           <>
             <HeroSection />
@@ -99,7 +105,7 @@ const Index = () => {
       </main>
       
       {/* Footer */}
-      <footer className="border-t border-border py-8 mt-12">
+      <footer className="border-t border-border py-8 mt-12 relative z-10 bg-background/80 backdrop-blur-sm">
         <div className="container max-w-6xl mx-auto px-4 text-center text-sm text-muted-foreground">
           <p>
             TruthLenz uses AI to help identify misinformation. Results are not 100% accurate. 
