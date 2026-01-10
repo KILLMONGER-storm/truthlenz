@@ -45,5 +45,16 @@ export interface VerificationResult {
 export interface UserFeedback {
   resultId: string;
   isCorrect: boolean;
+  correction?: string;
+  correctVerdict?: VerdictType;
   timestamp: Date;
+}
+
+export interface FeedbackSubmission {
+  content: string;
+  originalVerdict: VerdictType;
+  originalScore: number;
+  isCorrect: boolean;
+  userCorrection?: string;
+  correctVerdict?: VerdictType;
 }

@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import type { VerificationInput, VerificationResult, VerdictType, TextAnalysis, ClaimExtraction, MediaVerification } from '@/types/verification';
+import type { VerificationInput, VerificationResult, VerdictType, TextAnalysis, ClaimExtraction, MediaVerification, FeedbackSubmission } from '@/types/verification';
 
 interface ApiResponse {
   id: string;
@@ -63,4 +63,36 @@ export const verifyContent = async (input: VerificationInput): Promise<Verificat
     explanation: data.explanation,
     timestamp: new Date(data.timestamp),
   };
+};
+
+// Generate a simple hash for content matching
+const hashContent = (content: string): string => {
+  let hash = 0;
+  for (let i = 0; i < content.length; i++) {
+    const char = content.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return hash.toString(16);
+};
+
+export const submitFeedback = async (feedback: FeedbackSubmission): Promise<void> => {
+  const contentHash = hashContent(feedback.content);
+  
+  const { error } = await supabase
+    .from('verification_feedback')
+    .insert({
+      content_hash: contentHash,
+      original_content: feedback.content.substring(0, 5000), // Limit stored content
+      original_verdict: feedback.originalVerdict,
+      original_score: feedback.originalScore,
+      is_correct: feedback.isCorrect,
+      user_correction: feedback.userCorrection,
+      correct_verdict: feedback.correctVerdict,
+    });
+
+  if (error) {
+    console.error('Failed to submit feedback:', error);
+    throw new Error('Failed to save feedback');
+  }
 };
