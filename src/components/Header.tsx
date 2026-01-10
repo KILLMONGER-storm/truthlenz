@@ -5,13 +5,12 @@ export function Header() {
   return (
     <header className="w-full py-4 px-6 border-b border-border/50 bg-card/50 backdrop-blur-sm sticky top-0 z-50">
       <div className="max-w-6xl mx-auto flex items-center justify-between">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center">
           <img 
             src={truthLenzLogo} 
             alt="TruthLenz Logo" 
-            className="w-10 h-10 rounded-lg object-cover"
+            className="h-12 w-auto object-contain"
           />
-          <span className="text-xl font-bold">TruthLenz</span>
         </div>
         
         <nav className="flex items-center gap-6">
