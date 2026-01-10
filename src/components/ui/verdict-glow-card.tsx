@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 import { GlowEffect, GLOW_COLORS } from "@/components/ui/glow-effect";
 import type { VerdictType } from "@/types/verification";
+import { useMemo } from "react";
 
 interface VerdictGlowCardProps {
   children: React.ReactNode;
@@ -43,8 +44,11 @@ function getGlowConfig(score: number, verdict: VerdictType) {
 }
 
 export function VerdictGlowCard({ children, className, verdict, score = 50 }: VerdictGlowCardProps) {
-  const colors = getGlowColorsForVerdict(verdict);
-  const { duration, opacity, scale, mode } = getGlowConfig(score, verdict);
+  const colors = useMemo(() => getGlowColorsForVerdict(verdict), [verdict]);
+  const { duration, opacity, scale, mode } = useMemo(
+    () => getGlowConfig(score, verdict),
+    [score, verdict]
+  );
   
   return (
     <div className={cn("relative rounded-2xl overflow-hidden", className)}>
