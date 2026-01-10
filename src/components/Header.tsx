@@ -6,7 +6,7 @@ export function Header() {
   return (
     <header className="w-full py-4 px-6 border-b border-border/50 bg-card/50 backdrop-blur-sm sticky top-0 z-50">
       <div className="max-w-6xl mx-auto flex items-center justify-between">
-        <Link to="/" className="flex items-center bg-card/50 backdrop-blur-sm rounded-lg p-1 hover:bg-card/70 transition-all">
+        <Link to="/" className="flex items-center hover:opacity-80 transition-opacity">
           <img 
             src={truthLenzLogo} 
             alt="TruthLenz Logo" 
