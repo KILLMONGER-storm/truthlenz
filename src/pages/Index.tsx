@@ -15,9 +15,12 @@ const Index = () => {
   const [currentImageBase64, setCurrentImageBase64] = useState<string | undefined>();
   const [feedbackHistory, setFeedbackHistory] = useState<UserFeedback[]>();
 
+  const [pendingResult, setPendingResult] = useState<VerificationResult | null>(null);
+
   const handleVerify = async (input: VerificationInput) => {
     setIsLoading(true);
     setResult(null);
+    setPendingResult(null);
     setCurrentImageBase64(undefined);
     
     try {
@@ -28,16 +31,20 @@ const Index = () => {
         reader.readAsDataURL(input.file);
       }
       
-      // Simulate network delay for realistic UX
-      await new Promise(resolve => setTimeout(resolve, 500));
       const verificationResult = await verifyContent(input);
-      setResult(verificationResult);
+      setPendingResult(verificationResult);
     } catch (error) {
       toast.error('Verification failed. Please try again.');
       console.error('Verification error:', error);
-    } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleLoadingComplete = () => {
+    if (pendingResult) {
+      setResult(pendingResult);
+    }
+    setIsLoading(false);
   };
 
   const handleNewVerification = () => {
@@ -93,7 +100,7 @@ const Index = () => {
           </>
         )}
         
-        {isLoading && <LoadingState />}
+        {isLoading && <LoadingState onComplete={handleLoadingComplete} />}
         
         {result && !isLoading && (
           <ResultsSection
