@@ -4,7 +4,7 @@ import { HeroSection } from '@/components/HeroSection';
 import { InputSection } from '@/components/InputSection';
 import { ResultsSection } from '@/components/ResultsSection';
 import { LoadingState } from '@/components/LoadingState';
-import { verifyContent } from '@/lib/mockVerification';
+import { verifyContent } from '@/lib/verificationApi';
 import type { VerificationInput, VerificationResult, UserFeedback } from '@/types/verification';
 import { toast } from 'sonner';
 
