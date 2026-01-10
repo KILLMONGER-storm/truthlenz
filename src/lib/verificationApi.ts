@@ -12,12 +12,34 @@ interface ApiResponse {
   timestamp: string;
 }
 
+// Convert file to base64
+const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = (error) => reject(error);
+  });
+};
+
 export const verifyContent = async (input: VerificationInput): Promise<VerificationResult> => {
+  let imageBase64: string | undefined;
+  
+  // Convert image to base64 if present
+  if (input.file && input.type === 'image') {
+    try {
+      imageBase64 = await fileToBase64(input.file);
+    } catch (error) {
+      console.error('Failed to convert image to base64:', error);
+    }
+  }
+
   const { data, error } = await supabase.functions.invoke<ApiResponse>('verify-content', {
     body: {
       content: input.content,
       type: input.type,
       mediaDescription: input.file?.name,
+      imageBase64,
     },
   });
 
