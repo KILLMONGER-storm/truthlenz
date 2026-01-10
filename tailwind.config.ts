@@ -73,11 +73,23 @@ export default {
           DEFAULT: "hsl(var(--fake))",
           bg: "hsl(var(--fake-bg))",
         },
+        // Neobrutalist colors
+        main: 'var(--main)',
+        overlay: 'var(--overlay)',
+        bw: 'var(--bw)',
+        blank: 'var(--blank)',
+        'neo-text': 'var(--neo-text)',
+        mtext: 'var(--mtext)',
+        'neo-border': 'var(--neo-border)',
+        'neo-ring': 'var(--neo-ring)',
+        ringOffset: 'var(--ring-offset)',
+        secondaryBlack: '#212121',
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        base: '5px',
       },
       boxShadow: {
         'sm': 'var(--shadow-sm)',
@@ -85,6 +97,17 @@ export default {
         'lg': 'var(--shadow-lg)',
         'xl': 'var(--shadow-xl)',
         'glow': 'var(--shadow-glow)',
+        'neo': 'var(--neo-shadow)',
+      },
+      translate: {
+        boxShadowX: '4px',
+        boxShadowY: '4px',
+        reverseBoxShadowX: '-4px',
+        reverseBoxShadowY: '-4px',
+      },
+      fontWeight: {
+        base: '500',
+        heading: '700',
       },
       keyframes: {
         "accordion-down": {

@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { FileText, Link, Image, Video, Upload, X, Search } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { GlowCard } from '@/components/ui/spotlight-card';
 import { StardustButton } from '@/components/ui/stardust-button';
 import type { VerificationType, VerificationInput } from '@/types/verification';
@@ -77,21 +78,18 @@ export function InputSection({ onVerify, isLoading }: InputSectionProps) {
   
   return (
     <div className="w-full max-w-3xl mx-auto">
-      {/* Input Type Selector */}
-      <div className="flex flex-wrap justify-center gap-2 mb-6">
+      {/* Input Type Selector with Neobrutalist Buttons */}
+      <div className="flex flex-wrap justify-center gap-3 mb-6">
         {inputTypes.map(({ type, icon: Icon, label }) => (
-          <button
+          <Button
             key={type}
             onClick={() => setActiveType(type)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-full font-medium transition-all duration-200 ${
-              activeType === type
-                ? 'bg-primary text-primary-foreground shadow-md'
-                : 'bg-secondary text-secondary-foreground hover:bg-accent'
-            }`}
+            variant={activeType === type ? 'default' : 'neutral'}
+            size="sm"
           >
             <Icon className="w-4 h-4" />
             <span>{label}</span>
-          </button>
+          </Button>
         ))}
       </div>
       
