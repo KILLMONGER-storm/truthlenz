@@ -92,13 +92,15 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background relative">
+    <div className="min-h-screen relative">
       {/* Infinite Grid Background */}
-      <div className="fixed inset-0 -z-10">
+      <div className="fixed inset-0 z-0">
         <InfiniteGrid className="w-full h-full" />
       </div>
       
-      <Header />
+      <div className="relative z-10">
+        <Header />
+      </div>
       
       <main className="container max-w-6xl mx-auto px-4 py-12 relative z-10">
         {!result && !isLoading && (
