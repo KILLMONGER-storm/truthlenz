@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Header } from '@/components/Header';
 import { HeroSection } from '@/components/HeroSection';
 import { InputSection } from '@/components/InputSection';
@@ -12,23 +12,12 @@ import { toast } from 'sonner';
 const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<VerificationResult | null>(null);
-  const [pendingResult, setPendingResult] = useState<VerificationResult | null>(null);
   const [currentImageBase64, setCurrentImageBase64] = useState<string | undefined>();
   const [feedbackHistory, setFeedbackHistory] = useState<UserFeedback[]>();
-
-  const handleLoadingComplete = () => {
-    // When loading animation completes, transfer pending result to result
-    if (pendingResult) {
-      setResult(pendingResult);
-      setPendingResult(null);
-    }
-    setIsLoading(false);
-  };
 
   const handleVerify = async (input: VerificationInput) => {
     setIsLoading(true);
     setResult(null);
-    setPendingResult(null);
     setCurrentImageBase64(undefined);
     
     try {
@@ -40,7 +29,8 @@ const Index = () => {
       }
       
       const verificationResult = await verifyContent(input);
-      setPendingResult(verificationResult);
+      setResult(verificationResult);
+      setIsLoading(false);
     } catch (error) {
       toast.error('Verification failed. Please try again.');
       console.error('Verification error:', error);
@@ -50,7 +40,6 @@ const Index = () => {
 
   const handleNewVerification = () => {
     setResult(null);
-    setPendingResult(null);
     setCurrentImageBase64(undefined);
   };
 
@@ -104,7 +93,7 @@ const Index = () => {
           </>
         )}
         
-        {isLoading && <LoadingState onComplete={handleLoadingComplete} isDataReady={!!pendingResult} />}
+        {isLoading && <LoadingState />}
         
         {result && !isLoading && (
           <ResultsSection
