@@ -17,9 +17,11 @@ export type Database = {
       verification_feedback: {
         Row: {
           content_hash: string
+          content_type: string | null
           correct_verdict: string | null
           created_at: string
           id: string
+          image_base64: string | null
           is_correct: boolean
           original_content: string
           original_score: number
@@ -28,9 +30,11 @@ export type Database = {
         }
         Insert: {
           content_hash: string
+          content_type?: string | null
           correct_verdict?: string | null
           created_at?: string
           id?: string
+          image_base64?: string | null
           is_correct: boolean
           original_content: string
           original_score: number
@@ -39,9 +43,11 @@ export type Database = {
         }
         Update: {
           content_hash?: string
+          content_type?: string | null
           correct_verdict?: string | null
           created_at?: string
           id?: string
+          image_base64?: string | null
           is_correct?: boolean
           original_content?: string
           original_score?: number
