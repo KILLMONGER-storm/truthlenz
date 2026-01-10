@@ -1,9 +1,10 @@
-import type { ClaimExtraction } from '@/types/verification';
+import type { ClaimExtraction, VerdictType } from '@/types/verification';
 import { Search, CheckCircle, XCircle, AlertTriangle, HelpCircle } from 'lucide-react';
-import { GlowCard } from '@/components/ui/glow-card';
+import { VerdictGlowCard } from '@/components/ui/verdict-glow-card';
 
 interface FactCheckCardProps {
   claim: ClaimExtraction;
+  verdict: VerdictType;
 }
 
 const resultConfig = {
@@ -33,12 +34,12 @@ const resultConfig = {
   },
 };
 
-export function FactCheckCard({ claim }: FactCheckCardProps) {
+export function FactCheckCard({ claim, verdict }: FactCheckCardProps) {
   const config = resultConfig[claim.factCheckResult];
   const Icon = config.icon;
   
   return (
-    <GlowCard>
+    <VerdictGlowCard verdict={verdict}>
       <div className="flex items-center gap-3 mb-4">
         <div className="p-2 bg-primary/10 rounded-lg">
           <Search className="w-5 h-5 text-primary" />
@@ -81,6 +82,6 @@ export function FactCheckCard({ claim }: FactCheckCardProps) {
           </div>
         )}
       </div>
-    </GlowCard>
+    </VerdictGlowCard>
   );
 }
