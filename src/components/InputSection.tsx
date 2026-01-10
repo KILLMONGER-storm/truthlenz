@@ -184,7 +184,6 @@ export function InputSection({ onVerify, isLoading }: InputSectionProps) {
         <StardustButton
           onClick={handleSubmit}
           disabled={!isValid() || isLoading}
-          showStars={false}
         >
           {isLoading ? (
             <span className="flex items-center gap-2">
