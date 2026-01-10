@@ -49,14 +49,14 @@ export const InfiniteGrid = ({ className, children }: InfiniteGridProps) => {
       onMouseMove={handleMouseMove}
       className={cn(
         "relative w-full h-full overflow-hidden",
-        isDark ? "bg-neutral-950" : "bg-white",
+        isDark ? "bg-neutral-950" : "bg-slate-50",
         className
       )}
     >
-      {/* Base Grid Layer - Always visible, subtle */}
+      {/* Base Grid Layer - Always visible, more prominent */}
       <div className={cn(
         "absolute inset-0",
-        isDark ? "opacity-30" : "opacity-20"
+        isDark ? "opacity-50" : "opacity-40"
       )}>
         <GridPattern offsetX={gridOffsetX} offsetY={gridOffsetY} isDark={isDark} />
       </div>
@@ -72,26 +72,51 @@ export const InfiniteGrid = ({ className, children }: InfiniteGridProps) => {
         <GridPattern offsetX={gridOffsetX} offsetY={gridOffsetY} isDark={isDark} isActive />
       </motion.div>
 
-      {/* Gradient Overlays for depth */}
+      {/* Colorful Gradient Overlays */}
       <div className={cn(
         "absolute inset-0 pointer-events-none",
         isDark 
-          ? "bg-gradient-to-b from-transparent via-neutral-950/50 to-neutral-950" 
-          : "bg-gradient-to-b from-transparent via-white/50 to-white"
+          ? "bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(120,119,198,0.3),transparent)]" 
+          : "bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(59,130,246,0.2),transparent)]"
+      )} />
+
+      {/* Primary color accent - top right */}
+      <div className={cn(
+        "absolute inset-0 pointer-events-none",
+        isDark 
+          ? "bg-[radial-gradient(circle_at_80%_20%,rgba(139,92,246,0.15),transparent_50%)]" 
+          : "bg-[radial-gradient(circle_at_80%_20%,rgba(59,130,246,0.12),transparent_50%)]"
+      )} />
+
+      {/* Secondary color accent - bottom left */}
+      <div className={cn(
+        "absolute inset-0 pointer-events-none",
+        isDark 
+          ? "bg-[radial-gradient(circle_at_20%_80%,rgba(6,182,212,0.12),transparent_50%)]" 
+          : "bg-[radial-gradient(circle_at_20%_80%,rgba(16,185,129,0.1),transparent_50%)]"
+      )} />
+
+      {/* Accent color - center glow */}
+      <div className={cn(
+        "absolute inset-0 pointer-events-none",
+        isDark 
+          ? "bg-[radial-gradient(circle_at_50%_50%,rgba(236,72,153,0.08),transparent_70%)]" 
+          : "bg-[radial-gradient(circle_at_50%_50%,rgba(244,114,182,0.06),transparent_70%)]"
+      )} />
+
+      {/* Edge fade for depth */}
+      <div className={cn(
+        "absolute inset-0 pointer-events-none",
+        isDark 
+          ? "bg-gradient-to-b from-transparent via-transparent to-neutral-950/80" 
+          : "bg-gradient-to-b from-transparent via-transparent to-slate-50/80"
       )} />
 
       <div className={cn(
         "absolute inset-0 pointer-events-none",
         isDark 
-          ? "bg-gradient-to-r from-neutral-950 via-transparent to-neutral-950" 
-          : "bg-gradient-to-r from-white via-transparent to-white"
-      )} />
-
-      <div className={cn(
-        "absolute inset-0 pointer-events-none",
-        isDark
-          ? "bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(120,119,198,0.15),transparent)]"
-          : "bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(59,130,246,0.1),transparent)]"
+          ? "bg-gradient-to-r from-neutral-950/60 via-transparent to-neutral-950/60" 
+          : "bg-gradient-to-r from-slate-50/60 via-transparent to-slate-50/60"
       )} />
 
       {/* Content */}
@@ -119,11 +144,11 @@ const GridPattern = ({ offsetX, offsetY, isDark, isActive = false }: GridPattern
 
   const strokeColor = isDark 
     ? isActive 
-      ? "rgba(99, 102, 241, 0.8)"  // Indigo for dark active
-      : "rgba(255, 255, 255, 0.1)" // White subtle for dark base
+      ? "rgba(139, 92, 246, 0.9)"   // Vivid violet for dark active
+      : "rgba(255, 255, 255, 0.15)" // Brighter white for dark base
     : isActive 
-      ? "rgba(99, 102, 241, 0.6)"  // Indigo for light active
-      : "rgba(0, 0, 0, 0.08)";     // Black subtle for light base
+      ? "rgba(59, 130, 246, 0.8)"   // Vivid blue for light active
+      : "rgba(100, 116, 139, 0.2)"; // Slate for light base
 
   return (
     <svg className="absolute inset-0 w-full h-full">
