@@ -10,7 +10,7 @@ export function Header() {
           <img 
             src={truthLenzLogo} 
             alt="TruthLenz Logo" 
-            className="h-12 w-auto object-contain"
+            className="h-12 w-auto object-contain rounded-lg"
           />
         </Link>
         
