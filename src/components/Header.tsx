@@ -9,7 +9,7 @@ export function Header() {
           <div className="p-2 hero-gradient rounded-lg">
             <Shield className="w-6 h-6 text-primary-foreground" />
           </div>
-          <span className="text-xl font-bold">TruthGuard</span>
+          <span className="text-xl font-bold">TruthLenz</span>
         </div>
         
         <nav className="flex items-center gap-6">
