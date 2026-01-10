@@ -1,4 +1,5 @@
 import { Shield, Zap, Eye, Lock } from 'lucide-react';
+import { PatternText } from '@/components/ui/pattern-text';
 
 export function HeroSection() {
   return (
@@ -8,9 +9,9 @@ export function HeroSection() {
         AI-Powered Verification
       </div>
       
-      <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4 tracking-tight text-primary">
-        Detect Misinformation
-        <span className="block">Before It Spreads</span>
+      <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4 tracking-tight">
+        <PatternText text="Detect Misinformation" className="block" />
+        <PatternText text="Before It Spreads" className="block" />
       </h1>
       
       <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
