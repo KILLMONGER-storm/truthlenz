@@ -9,7 +9,7 @@ export function HeroSection() {
         AI-Powered Verification
       </div>
       
-      <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4 tracking-tight">
+      <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4 tracking-tight retro-3d-text">
         <PatternText text="Detect Misinformation" className="block" />
         <PatternText text="Before It Spreads" className="block" />
       </h1>
