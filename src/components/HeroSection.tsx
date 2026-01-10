@@ -34,15 +34,15 @@ export function HeroSection() {
       
       {/* Features */}
       <div className="flex flex-wrap justify-center gap-6 text-sm text-muted-foreground">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-card/50 border border-border/50 cursor-pointer transition-all duration-300 hover:scale-110 hover:shadow-lg hover:bg-primary/10 hover:text-primary animate-float-1">
           <Eye className="w-4 h-4 text-primary" />
           <span>Text & Media Analysis</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-card/50 border border-border/50 cursor-pointer transition-all duration-300 hover:scale-110 hover:shadow-lg hover:bg-primary/10 hover:text-primary animate-float-2">
           <Shield className="w-4 h-4 text-primary" />
           <span>Fact Verification</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-card/50 border border-border/50 cursor-pointer transition-all duration-300 hover:scale-110 hover:shadow-lg hover:bg-primary/10 hover:text-primary animate-float-3">
           <Lock className="w-4 h-4 text-primary" />
           <span>Privacy First</span>
         </div>
