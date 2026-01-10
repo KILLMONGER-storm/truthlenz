@@ -23,14 +23,14 @@ const fileToBase64 = (file: File): Promise<string> => {
 };
 
 export const verifyContent = async (input: VerificationInput): Promise<VerificationResult> => {
-  let imageBase64: string | undefined;
+  let mediaBase64: string | undefined;
   
-  // Convert image to base64 if present
-  if (input.file && input.type === 'image') {
+  // Convert image or video to base64 if present
+  if (input.file && (input.type === 'image' || input.type === 'video')) {
     try {
-      imageBase64 = await fileToBase64(input.file);
+      mediaBase64 = await fileToBase64(input.file);
     } catch (error) {
-      console.error('Failed to convert image to base64:', error);
+      console.error('Failed to convert media to base64:', error);
     }
   }
 
@@ -39,7 +39,7 @@ export const verifyContent = async (input: VerificationInput): Promise<Verificat
       content: input.content,
       type: input.type,
       mediaDescription: input.file?.name,
-      imageBase64,
+      mediaBase64,
     },
   });
 
