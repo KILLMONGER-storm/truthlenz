@@ -35,15 +35,22 @@ export interface MediaVerification {
   manipulationDetected: boolean;
   matchesClaim: boolean;
   flags: string[];
-  // Enhanced image analysis fields
+  // Enhanced media analysis fields (for both images and videos)
   authenticityScore?: number;
+  mediaVerdict?: 'real' | 'edited' | 'ai_generated' | 'suspicious';
+  // Legacy field for backwards compatibility
   imageVerdict?: 'real' | 'edited' | 'ai_generated' | 'suspicious';
+  mediaType?: 'image' | 'video';
   analysisDetails?: {
     pixelAnalysis?: ImageInspectionDetail[];
     textureAnalysis?: ImageInspectionDetail[];
     semanticAnalysis?: ImageInspectionDetail[];
     brandAuthenticity?: ImageInspectionDetail[];
     humanAnalysis?: ImageInspectionDetail[];
+    // Video-specific analysis
+    temporalAnalysis?: ImageInspectionDetail[];
+    audioAnalysis?: ImageInspectionDetail[];
+    frameConsistency?: ImageInspectionDetail[];
     crossMatchResults?: {
       hasOnlineMatch: boolean;
       matchConfidence: number;
