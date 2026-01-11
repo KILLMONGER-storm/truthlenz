@@ -1,8 +1,13 @@
 import { Link } from 'react-router-dom';
 import CinematicThemeSwitcher from '@/components/ui/cinematic-theme-switcher';
+import { Button } from '@/components/ui/button';
+import { useAuth } from '@/hooks/useAuth';
+import { LogOut } from 'lucide-react';
 import truthLenzLogo from '@/assets/truthlenz-logo.jpg';
 
 export function Header() {
+  const { user, signOut } = useAuth();
+
   return (
     <header className="w-full py-4 px-6 border-b border-border/50 bg-card/50 backdrop-blur-sm sticky top-0 z-50">
       <div className="max-w-6xl mx-auto flex items-center justify-between">
@@ -14,7 +19,7 @@ export function Header() {
           />
         </Link>
         
-        <nav className="flex items-center gap-6">
+        <nav className="flex items-center gap-4">
           <a href="#" className="hidden md:block text-sm text-muted-foreground hover:text-foreground transition-colors">
             How It Works
           </a>
@@ -22,6 +27,17 @@ export function Header() {
             About
           </a>
           <CinematicThemeSwitcher />
+          {user && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={signOut}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">Sign Out</span>
+            </Button>
+          )}
         </nav>
       </div>
     </header>
