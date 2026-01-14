@@ -95,7 +95,7 @@ const getRelevantFeedback = async (content: string, contentType: string): Promis
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    
+
     if (!supabaseUrl || !supabaseKey) {
       console.log("Supabase credentials not available for feedback lookup");
       return [];
@@ -103,7 +103,7 @@ const getRelevantFeedback = async (content: string, contentType: string): Promis
 
     const supabase = createClient(supabaseUrl, supabaseKey);
     const contentHash = hashContent(content);
-    
+
     // Get exact matches first
     const { data: exactMatches } = await supabase
       .from('verification_feedback')
@@ -112,11 +112,11 @@ const getRelevantFeedback = async (content: string, contentType: string): Promis
       .eq('is_correct', false)
       .not('user_correction', 'is', null)
       .limit(3);
-    
+
     if (exactMatches && exactMatches.length > 0) {
       return exactMatches;
     }
-    
+
     // Get recent corrections for the same content type
     const { data: recentFeedback } = await supabase
       .from('verification_feedback')
@@ -126,7 +126,7 @@ const getRelevantFeedback = async (content: string, contentType: string): Promis
       .not('user_correction', 'is', null)
       .order('created_at', { ascending: false })
       .limit(10);
-    
+
     return recentFeedback || [];
   } catch (error) {
     console.error("Error fetching feedback:", error);
@@ -142,10 +142,10 @@ const analyzeMediaWithModel = async (
   prompt: string,
   mediaType: 'image' | 'video' = 'image'
 ): Promise<any> => {
-  const systemContent = mediaType === 'video' 
-    ? "You are an expert forensic video analyst specializing in detecting AI-generated, manipulated, deepfake, and synthetic videos. Respond with valid JSON only."
-    : "You are an expert forensic image analyst specializing in detecting AI-generated, manipulated, and fake images. Respond with valid JSON only.";
-  
+  const systemContent = mediaType === 'video'
+    ? "You are a multimodal forensic verification system specializing in video analysis. Your goal is not to be persuasive, polite, or fast, but to be correct. Assume all inputs may be deceptive. Respond with valid JSON only."
+    : "You are a multimodal forensic verification system specializing in image analysis. Your goal is not to be persuasive, polite, or fast, but to be correct. Assume all inputs may be deceptive. Respond with valid JSON only.";
+
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -156,8 +156,8 @@ const analyzeMediaWithModel = async (
       model,
       messages: [
         { role: "system", content: systemContent },
-        { 
-          role: "user", 
+        {
+          role: "user",
           content: [
             { type: "text", text: prompt },
             { type: "image_url", image_url: { url: mediaBase64 } }
@@ -199,7 +199,7 @@ serve(async (req) => {
     const { content, type, mediaDescription } = requestData;
     // Support both legacy imageBase64 and new mediaBase64
     const mediaBase64 = requestData.mediaBase64 || requestData.imageBase64;
-    
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
@@ -211,7 +211,7 @@ serve(async (req) => {
     const relevantFeedback = await getRelevantFeedback(content, type);
     let feedbackContext = "";
     const mediaFeedbackExamples: Array<{ media: string; correction: string; correctVerdict: string; mediaType: string }> = [];
-    
+
     if (relevantFeedback.length > 0) {
       // Separate media feedback with actual media for multi-modal training
       for (const f of relevantFeedback) {
@@ -224,7 +224,7 @@ serve(async (req) => {
           });
         }
       }
-      
+
       feedbackContext = `
 IMPORTANT: Learn from these user corrections on similar content:
 ${relevantFeedback.map((f, i) => `
@@ -238,217 +238,131 @@ Use these corrections to improve your analysis and avoid similar mistakes.`;
     }
 
     let messages: Array<{ role: string; content: string | Array<{ type: string; text?: string; image_url?: { url: string } }> }>;
-    
+
     if ((type === 'image' || type === 'video') && mediaBase64) {
       const isVideo = type === 'video';
       // Comprehensive multi-level media analysis prompt
-      const mediaAnalysisPrompt = isVideo ? `You are a forensic video analyst. Perform comprehensive analysis of this video.
+      const mediaAnalysisPrompt = isVideo ? `You are a temporal and audiovisual forensic analyst.
+Your goal is accuracy, not decisiveness. Treat realism as suspicious until proven otherwise.
 
 ${content ? `Context: "${content}"` : ''}
 ${mediaDescription ? `Filename: ${mediaDescription}` : ''}
 ${feedbackContext}
 
-## REQUIRED ANALYSIS LEVELS:
+## FORENSIC PROTOCOL:
+1. Decompose the video into verifiable components (frames, audio, temporal flow).
+2. Analyze each component independently using modality-specific reasoning.
+3. Cross-check internal consistency and external plausibility.
+4. Detect signs of AI generation, manipulation, or contextual misuse.
+5. Assign calibrated confidence scores.
 
-### 1. FRAME-LEVEL ANALYSIS
-- Check for compression artifacts inconsistencies across frames
-- Analyze noise patterns and temporal consistency
-- Detect splicing or frame insertion/deletion
-- Look for resolution mismatches between elements
-- Check for encoding inconsistencies
+## REQUIRED ANALYSIS STEPS:
 
-### 2. TEMPORAL ANALYSIS
-- Frame rate consistency throughout the video
-- Motion blur authenticity and consistency
-- Temporal coherence of moving objects
-- Smooth vs jerky transitions detection
-- Frame interpolation artifacts
+### 1. FACIAL & ID DRIFT (Forensic)
+- Examine facial consistency across frames (micro-feature stability).
+- Check lip-sync accuracy with spoken audio (coarticulation analysis).
+- Look for unnatural eye blinking or facial stiffness (liveness detection).
+- Detect temporal smoothing or frame-to-frame identity drift.
+- Analyze audio for synthetic voice artifacts (robotic timbre, breath patterns).
 
-### 3. AUDIO ANALYSIS (if present)
-- Audio-visual synchronization accuracy
-- Voice consistency and naturalness
-- Background audio continuity
-- Audio splicing or dubbing detection
-- Lip-sync accuracy for speaking subjects
+### 2. TEMPORAL & PHYSICS
+- Frame rate consistency and motion blur authenticity.
+- Physical plausibility of movements (gravity, momentum).
+- Shadow and lighting coherence through time/motion.
+- "Uncanny valley" features in motion.
 
-### 4. TEXTURE ANALYSIS
-- Skin texture consistency across frames
-- Fabric and material realism over time
-- Surface material authenticity in motion
-- Hair and fine detail consistency
-- Background texture coherence through movement
+### 3. CROSS-MODAL CONSISTENCY
+- Do visual events match audio cues exactly?
+- Does the scene context match the alleged location/time?
+- Are there signs of splicing from multiple sources?
 
-### 5. SEMANTIC ANALYSIS
-- Shadow consistency across frames
-- Lighting coherence throughout the video
-- Perspective accuracy in motion
-- Scale proportions consistency
-- Physical plausibility of movements and actions
+### 4. DEEPFAKE SPECIFICS
+- Face boundary artifacts (hairline, ears, neck).
+- Skin tone consistency across lighting changes.
+- Eye reflection consistency.
 
-### 6. DEEPFAKE DETECTION
-- Facial micro-expressions naturalness
-- Eye blinking patterns and frequency
-- Head movement and neck rotation consistency
-- Face boundary artifacts (hairline, ears, neck)
-- Skin tone consistency across lighting changes
-- Facial asymmetry consistency
-
-### 7. AI/SYNTHETIC VIDEO DETECTION
-- Common AI video artifacts
-- Unnatural motion patterns
-- Repetitive or looping elements
-- Inconsistent detail levels over time
-- Text/logo rendering stability
-- "Uncanny valley" features in motion
-
-### 8. CROSS-MATCH ASSESSMENT
-- Does this appear to be original footage or potentially reused?
-- Signs of video splicing from multiple sources
-- Metadata consistency indicators
+If evidence is insufficient, classify as "Inconclusive". False positives are dangerous.
 
 Respond with ONLY this JSON structure:
 {
-  "mediaVerdict": "real" | "edited" | "ai_generated" | "suspicious",
+  "mediaVerdict": "real" | "edited" | "ai_generated" | "suspicious" | "inconclusive",
   "authenticityScore": 0-100,
-  "description": "What the video depicts",
-  "explanation": "Plain-English summary of findings prioritizing the most significant issues",
+  "description": "Scientific description of the video content",
+  "explanation": "Step-by-step forensic reasoning explaining the verdict. Cite specific timestamps or frames if possible.",
   "analysisDetails": {
-    "pixelAnalysis": [
-      {"category": "Frame Quality", "finding": "description", "confidence": 0-100, "severity": "low|medium|high"}
-    ],
-    "temporalAnalysis": [
-      {"category": "Frame Consistency", "finding": "description", "confidence": 0-100, "severity": "low|medium|high"}
+    "humanAnalysis": [
+      {"category": "Facial Consistency", "finding": "observation", "confidence": 0-100, "severity": "low|medium|high"}
     ],
     "audioAnalysis": [
-      {"category": "Audio Sync/Quality", "finding": "description", "confidence": 0-100, "severity": "low|medium|high"}
+      {"category": "Lip-Sync/Voice", "finding": "observation", "confidence": 0-100, "severity": "low|medium|high"}
     ],
-    "textureAnalysis": [
-      {"category": "Skin/Fabric/Surface", "finding": "description", "confidence": 0-100, "severity": "low|medium|high"}
-    ],
-    "semanticAnalysis": [
-      {"category": "Shadows/Lighting/Motion", "finding": "description", "confidence": 0-100, "severity": "low|medium|high"}
-    ],
-    "humanAnalysis": [
-      {"category": "Deepfake Indicators", "finding": "description", "confidence": 0-100, "severity": "low|medium|high"}
-    ],
-    "frameConsistency": [
-      {"category": "Temporal Coherence", "finding": "description", "confidence": 0-100, "severity": "low|medium|high"}
+    "temporalAnalysis": [
+      {"category": "Motion/Physics", "finding": "observation", "confidence": 0-100, "severity": "low|medium|high"}
     ],
     "crossMatchResults": {
       "hasOnlineMatch": true|false,
       "matchConfidence": 0-100,
-      "possibleSources": ["source1", "source2"]
+      "possibleSources": []
     }
   },
-  "inspectionHighlights": ["Key finding 1", "Key finding 2", "Key finding 3"],
-  "flags": ["Warning 1", "Warning 2"],
+  "inspectionHighlights": ["Forensic Indicator 1", "Forensic Indicator 2"],
+  "flags": ["Risk Factor 1", "Risk Factor 2"],
   "isManipulated": true|false,
-  "manipulationSigns": ["sign1", "sign2"],
   "isAiGenerated": true|false,
   "isDeepfake": true|false,
-  "deepfakeSigns": ["sign1", "sign2"],
-  "aiGenerationSigns": ["sign1", "sign2"],
-  "verdict": "reliable" | "misleading" | "fake",
+  "verdict": "reliable" | "misleading" | "fake" | "inconclusive",
   "credibilityScore": 0-100,
-  "mainClaim": "What the video claims to show",
-  "factCheckResult": "confirmed" | "disputed" | "false" | "unverified",
-  "reasons": ["reason1", "reason2"]
-}` : `You are a forensic image analyst. Perform comprehensive analysis of this image.
+  "mainClaim": "The apparent narrative of the video",
+  "factCheckResult": "confirmed" | "disputed" | "false" | "unverified"
+}` : `You are a digital forensics expert.
+Your goal is accuracy, not decisiveness. Treat realism as suspicious until proven otherwise.
 
 ${content ? `Context: "${content}"` : ''}
 ${mediaDescription ? `Filename: ${mediaDescription}` : ''}
 ${feedbackContext}
 
-## REQUIRED ANALYSIS LEVELS:
+## FORENSIC PROTOCOL:
+1. Inspeck skin texture realism and micro-details (pores, imperfections).
+2. Check lighting consistency across objects and faces (shadow vectors).
+3. Analyze edge blending, halos, and unnatural sharpness (splicing artifacts).
+4. Examine logos, text, or symbols for deformation or incorrect geometry (AI signs).
+5. Check reflections in eyes, mirrors, or glass (geometry consistency).
+6. Look for GAN fingerprints or over-smoothing.
+7. Assess if the image is contextually misleading even if unedited.
 
-### 1. PIXEL-LEVEL ANALYSIS
-- Check for compression artifacts inconsistencies
-- Analyze noise patterns across the image
-- Detect cloning/copy-paste regions
-- Look for resolution mismatches between elements
-- Check for JPEG ghost artifacts from re-saving
-
-### 2. TEXTURE ANALYSIS
-- Skin texture consistency (pores, noise patterns, lighting gradients)
-- Fabric weave realism (jerseys, clothing texture, embroidery edges)
-- Surface material authenticity (metal, wood, glass reflections)
-- Hair strand naturalness and consistency
-- Background texture coherence
-
-### 3. SEMANTIC ANALYSIS
-- Shadow direction and consistency
-- Lighting source coherence across all objects
-- Perspective and vanishing point accuracy
-- Scale proportions of objects
-- Physical plausibility of the scene
-
-### 4. BRAND & OBJECT AUTHENTICITY
-- Logo geometry accuracy (shape distortion, symmetry errors)
-- Typography/font accuracy on visible text
-- Color accuracy of known brands
-- Proportions of branded objects
-- Detail level consistency with authentic items
-
-### 5. HUMAN ANALYSIS (if people present)
-- Facial micro-details (skin pores, wrinkles, asymmetries)
-- Eye reflection consistency and realism
-- Ear symmetry and detail
-- Hand/finger proportions and detail
-- Hair-to-skin boundary naturalness
-- Teeth detail and alignment
-
-### 6. AI GENERATION DETECTION
-- Common AI artifacts (melted fingers, asymmetric features)
-- Unnatural smoothness or over-sharpening
-- Repetitive patterns in backgrounds
-- Inconsistent detail levels
-- Text/letter rendering issues
-- "Uncanny valley" facial features
-
-### 7. CROSS-MATCH ASSESSMENT
-- Does this appear to be a unique photo or potentially reused?
-- Signs of image splicing from multiple sources
-- Metadata consistency indicators
+If evidence is insufficient, classify as "Inconclusive".
 
 Respond with ONLY this JSON structure:
 {
-  "mediaVerdict": "real" | "edited" | "ai_generated" | "suspicious",
+  "mediaVerdict": "real" | "edited" | "ai_generated" | "suspicious" | "inconclusive",
   "authenticityScore": 0-100,
-  "description": "What the image depicts",
-  "explanation": "Plain-English summary of findings prioritizing the most significant issues",
+  "description": "Forensic description of the image content",
+  "explanation": "Step-by-step forensic reasoning explaining the verdict.",
   "analysisDetails": {
     "pixelAnalysis": [
-      {"category": "Compression", "finding": "description", "confidence": 0-100, "severity": "low|medium|high"}
+      {"category": "Compression/Noise", "finding": "observation", "confidence": 0-100, "severity": "low|medium|high"}
     ],
     "textureAnalysis": [
-      {"category": "Skin/Fabric/Surface", "finding": "description", "confidence": 0-100, "severity": "low|medium|high"}
+      {"category": "Skin/Surface", "finding": "observation", "confidence": 0-100, "severity": "low|medium|high"}
     ],
     "semanticAnalysis": [
-      {"category": "Shadows/Lighting/Perspective", "finding": "description", "confidence": 0-100, "severity": "low|medium|high"}
+      {"category": "Lighting/Physics", "finding": "observation", "confidence": 0-100, "severity": "low|medium|high"}
     ],
     "brandAuthenticity": [
-      {"category": "Logo/Text/Brand", "finding": "description", "confidence": 0-100, "severity": "low|medium|high"}
+      {"category": "Logos/Text", "finding": "observation", "confidence": 0-100, "severity": "low|medium|high"}
     ],
     "humanAnalysis": [
-      {"category": "Face/Body/Features", "finding": "description", "confidence": 0-100, "severity": "low|medium|high"}
-    ],
-    "crossMatchResults": {
-      "hasOnlineMatch": true|false,
-      "matchConfidence": 0-100,
-      "possibleSources": ["source1", "source2"]
-    }
+      {"category": "Anatomy/Eyes", "finding": "observation", "confidence": 0-100, "severity": "low|medium|high"}
+    ]
   },
-  "inspectionHighlights": ["Key finding 1", "Key finding 2", "Key finding 3"],
-  "flags": ["Warning 1", "Warning 2"],
+  "inspectionHighlights": ["Forensic Indicator 1", "Forensic Indicator 2"],
+  "flags": ["Risk Factor 1", "Risk Factor 2"],
   "isManipulated": true|false,
-  "manipulationSigns": ["sign1", "sign2"],
   "isAiGenerated": true|false,
-  "aiGenerationSigns": ["sign1", "sign2"],
-  "verdict": "reliable" | "misleading" | "fake",
+  "verdict": "reliable" | "misleading" | "fake" | "inconclusive",
   "credibilityScore": 0-100,
-  "mainClaim": "What the image claims to show",
-  "factCheckResult": "confirmed" | "disputed" | "false" | "unverified",
-  "reasons": ["reason1", "reason2"]
+  "mainClaim": "The visual claim",
+  "factCheckResult": "confirmed" | "disputed" | "false" | "unverified"
 }`;
 
       // Build messages with media feedback examples for training
@@ -456,20 +370,20 @@ Respond with ONLY this JSON structure:
         { type: "text", text: mediaAnalysisPrompt },
         { type: "image_url", image_url: { url: mediaBase64 } }
       ];
-      
+
       // Add past media feedback as training examples (limit to 2 to avoid token limits)
       if (mediaFeedbackExamples.length > 0) {
-        const trainingPrefix = { 
-          type: "text", 
-          text: `\n\n## TRAINING FROM PAST USER CORRECTIONS:\nThe following are examples of ${isVideo ? 'videos' : 'images'} where users corrected our analysis. Learn from these patterns:\n` 
+        const trainingPrefix = {
+          type: "text",
+          text: `\n\n## TRAINING FROM PAST USER CORRECTIONS:\nThe following are examples of ${isVideo ? 'videos' : 'images'} where users corrected our analysis. Learn from these patterns:\n`
         };
         userContent.push(trainingPrefix);
-        
+
         for (const example of mediaFeedbackExamples.slice(0, 2)) {
           userContent.push({ type: "image_url", image_url: { url: example.media } });
-          userContent.push({ 
-            type: "text", 
-            text: `User correction: This ${example.mediaType} should be "${example.correctVerdict}". Reason: "${example.correction}"\n` 
+          userContent.push({
+            type: "text",
+            text: `User correction: This ${example.mediaType} should be "${example.correctVerdict}". Reason: "${example.correction}"\n`
           });
         }
       }
@@ -477,10 +391,10 @@ Respond with ONLY this JSON structure:
       // Primary model analysis (Gemini 2.5 Pro for best media understanding)
       console.log(`Starting primary model analysis (gemini-2.5-pro) for ${type}...`);
       let primaryAnalysis: any;
-      const systemPrompt = isVideo 
-        ? "You are an expert forensic video analyst specializing in deepfake detection. Learn from user corrections to improve accuracy. Respond with valid JSON only."
-        : "You are an expert forensic image analyst. Learn from user corrections to improve accuracy. Respond with valid JSON only.";
-      
+      const systemPrompt = isVideo
+        ? "You are a multimodal forensic verification system. Your goal is accuracy, not decisiveness. Respond with valid JSON only."
+        : "You are a multimodal forensic verification system. Your goal is accuracy, not decisiveness. Respond with valid JSON only.";
+
       try {
         const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
@@ -496,7 +410,7 @@ Respond with ONLY this JSON structure:
             ],
           }),
         });
-        
+
         if (!response.ok) throw new Error(`Primary model failed: ${response.status}`);
         const data = await response.json();
         primaryAnalysis = safeParseJSON(data.choices?.[0]?.message?.content);
@@ -518,9 +432,9 @@ Respond with ONLY this JSON structure:
       console.log("Starting secondary model verification (gemini-2.5-flash)...");
       let secondaryAnalysis: any = null;
       let modelAgreement: any = null;
-      
+
       try {
-        const secondaryPrompt = isVideo 
+        const secondaryPrompt = isVideo
           ? `Quickly analyze this video for authenticity. Is it: real, edited, AI-generated, or a deepfake?
 Respond with JSON only:
 {
@@ -535,7 +449,7 @@ Respond with JSON only:
   "confidence": 0-100,
   "keyReasons": ["reason1", "reason2", "reason3"]
 }`;
-        
+
         const secondaryResponse = await analyzeMediaWithModel(
           LOVABLE_API_KEY,
           "google/gemini-2.5-flash",
@@ -555,7 +469,7 @@ Respond with JSON only:
         if (!verdictMatch) {
           const primaryIsReal = primaryVerdict === 'real';
           const secondaryIsReal = secondaryAnalysis.verdict === 'real';
-          
+
           if (primaryIsReal !== secondaryIsReal) {
             agreementLevel = 'low';
             confidenceAdjustment = "Models disagree significantly - confidence reduced, flagged for review";
@@ -597,8 +511,8 @@ Respond with JSON only:
 
       // Build the response
       const textAnalysis: TextAnalysis = {
-        verdict: primaryAnalysis.verdict || (mediaVerdict === 'real' ? 'reliable' : 
-                 mediaVerdict === 'suspicious' ? 'misleading' : 'fake'),
+        verdict: primaryAnalysis.verdict || (mediaVerdict === 'real' ? 'reliable' :
+          mediaVerdict === 'suspicious' ? 'misleading' : 'fake'),
         reasons: primaryAnalysis.reasons || [],
         sensationalLanguage: [],
         emotionalPatterns: [],
@@ -607,7 +521,7 @@ Respond with JSON only:
       const claimExtraction: ClaimExtraction = {
         mainClaim: primaryAnalysis.mainClaim || primaryAnalysis.description || `${isVideo ? 'Video' : 'Image'} analysis`,
         factCheckResult: primaryAnalysis.factCheckResult || 'unverified',
-        sources: isVideo 
+        sources: isVideo
           ? ['Multi-Model AI Analysis', 'Temporal Analysis', 'Deepfake Detection', 'Audio Sync Analysis']
           : ['Multi-Model AI Analysis', 'Pixel-Level Inspection', 'Semantic Verification'],
       };
@@ -654,7 +568,7 @@ Respond with JSON only:
     } else {
       // Text-based analysis with real web search using Gemini
       const GEMINI_API_KEY = Deno.env.get("geminiapikey");
-      
+
       if (!GEMINI_API_KEY) {
         throw new Error("Gemini API key is not configured");
       }
@@ -662,17 +576,23 @@ Respond with JSON only:
       console.log("Starting web search verification with Gemini...");
 
       // Step 1: Use Gemini with Google Search grounding to find real sources
-      const searchPrompt = `Search the web for information about this claim and verify if it's been reported by reliable sources:
+      const searchPrompt = `Perform an EXTENSIVE and EXHAUSTIVE web search to verify this claim.
+Your goal is to find ORIGINAL SOURCES, OFFICIAL NOTIFICATIONS, or DEFINITIVE DEBUNKS.
 
+CLAIM TO VERIFY:
 "${content}"
 
-Find:
-1. Whether this exact claim or similar claims appear on reliable news sources
-2. The credibility and reputation of sources mentioning this
-3. Any fact-checks or debunking of this claim
-4. The original source if identifiable
+SEARCH PROTOCOL:
+1.  **Official Verification**: Search for official press releases, government notifications, or company statements matching specific dates/figures. (e.g., if RBI is mentioned, search 'RBI press release [date]').
+2.  **Credible News**: Check major, top-tier news outlets (Reuters, AP, PTI, Bloomberg). Use specific keywords from the text via "site:reuters.com" etc. logic.
+3.  **Cross-Referencing**: Look for the *exact phrasing* of quotes to see if they appear in real interviews.
+4.  **Absence of Evidence**: If a major announcement is claimed (e.g., "New Bank Rules"), search for the *lack* of coverage in financial news, which is a strong signal of a fake.
+5.  **Fact-Checkers**: Search for specific debunking articles (Snopes, AltNews, BoomLive, PIB Fact Check) related to these keywords.
 
-Report your findings with specific sources and URLs.`;
+Find and report:
+- Direct links to official documents/notifications if they exist.
+- Whether major outlets are silent on this "breaking news" (Red Flag).
+- Any similar known hoaxes or ongoing misinformation campaigns.`;
 
       const searchResponse = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
@@ -701,7 +621,7 @@ Report your findings with specific sources and URLs.`;
       const searchData = await searchResponse.json();
       const searchResults = searchData.candidates?.[0]?.content?.parts?.[0]?.text || "";
       const groundingMetadata = searchData.candidates?.[0]?.groundingMetadata;
-      
+
       // Extract sources from grounding metadata
       const webSources: string[] = [];
       if (groundingMetadata?.groundingChunks) {
@@ -711,11 +631,12 @@ Report your findings with specific sources and URLs.`;
           }
         }
       }
-      
+
       console.log(`Found ${webSources.length} web sources for verification`);
 
       // Step 2: Analyze the search results to make a verdict
-      const analysisPrompt = `You are a misinformation detection expert. Based on web search results, analyze this content.
+      const analysisPrompt = `You are a Forensic Fact-Checker and Credibility Auditor.
+Your goal is accuracy, not decisiveness. Treat all claims as suspicious until proven otherwise.
 
 ORIGINAL CLAIM:
 """
@@ -731,22 +652,40 @@ SOURCES FOUND: ${webSources.length > 0 ? webSources.slice(0, 5).join(", ") : "No
 
 ${feedbackContext}
 
-Analyze based on these criteria:
-- If NO sources found or only unreliable sources: verdict should be "fake" or "misleading" with low credibility
-- If sources are mixed or from tabloids/social media only: "misleading" 
-- If multiple reliable sources (major news outlets, official sources, fact-checkers) confirm: "reliable"
-- If fact-checkers have debunked this: "fake"
+## FORENSIC PROTOCOL:
+1.  **Extract & Isolate**: Extract factual claims (dates, numbers, quotes, official bodies).
+2.  **Official Source Check**: If the claim attributes action to an entity (e.g., "RBI introduces..."), is there a matching *Official Notification* or release in the search results?
+    -   **CRITICAL RULE**: If a major official action is claimed but NOT found on the official website or major financial wires, it is likely a **SOPHISTICATED FAKE**.
+3.  **"Realistic Fake" Detection**:
+    -   Does the text use "authoritative" language (e.g., "according to sources," "internal memo") without naming a veritable source? -> **High Probability of Fake**.
+    -   Does it mix real context (e.g., "rising fraud") with a fake specific action? -> **Misleading/Fake**.
+4.  **Silence as Evidence**: If the search results show NO coverage from major relevant outlets for a "breaking" story, treat this as evidence of falsity.
+
+## VERDICT CRITERIA:
+-   **"fake"**:
+    -   Proven false by fact-checkers.
+    -   Claims "Official Action" but no official source exists.
+    -   Claims "Breaking News" but major outlets are silent.
+    -   Credibility Score MUST be < 40.
+-   **"misleading"**:
+    -   Real events taken out of context.
+    -   "Likely" or "Proposed" actions presented as "Done".
+    -   Credibility Score between 50-70.
+-   **"reliable"**:
+    -   Confirmed by official sources (links found).
+    -   Reported by multiple independent top-tier outlets with matching details.
+    -   Credibility Score > 90.
 
 Respond with ONLY valid JSON (no markdown, no code blocks):
 {
-  "verdict": "reliable" | "misleading" | "fake",
-  "reasons": ["reason1", "reason2", ...],
+  "verdict": "reliable" | "misleading" | "fake" | "inconclusive",
+  "reasons": ["Forensic Reason 1", "Forensic Reason 2", ...],
   "sensationalLanguage": ["word1", "word2", ...],
   "emotionalPatterns": ["pattern1", "pattern2", ...],
-  "mainClaim": "One sentence summary of the main claim",
+  "mainClaim": "Decomposed factual claim",
   "factCheckResult": "confirmed" | "disputed" | "false" | "unverified",
   "credibilityScore": 0-100,
-  "explanation": "A plain-English explanation including what sources were found (or not found) and why this affects credibility",
+  "explanation": "Step-by-step forensic explanation. Explicitly state if 'official sources' were checked and missing. Use strong language if it appears to be a realistic fake.",
   "sourcesAnalysis": {
     "reliableSources": ["list of reliable sources found"],
     "unreliableSources": ["list of unreliable/questionable sources"],
@@ -755,7 +694,7 @@ Respond with ONLY valid JSON (no markdown, no code blocks):
   }
 }
 
-IMPORTANT: If no reliable sources confirm this claim, the credibility score should be LOW (under 40) and indicate "Insufficient information - likely fake or unverified".`;
+IMPORTANT: If the claim looks like an official announcement but NO official source is found in search results, you MUST classify as "fake" with a low score (under 30).`;
 
       const analysisResponse = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`,
@@ -774,7 +713,7 @@ IMPORTANT: If no reliable sources confirm this claim, the credibility score shou
 
       const analysisData = await analysisResponse.json();
       const aiContent = analysisData.candidates?.[0]?.content?.parts?.[0]?.text;
-      
+
       if (!aiContent) {
         throw new Error("No response from AI model");
       }
@@ -788,7 +727,7 @@ IMPORTANT: If no reliable sources confirm this claim, the credibility score shou
         const noSourcesFound = webSources.length === 0;
         analysis = {
           verdict: noSourcesFound ? "fake" : "misleading",
-          reasons: noSourcesFound 
+          reasons: noSourcesFound
             ? ["No reliable sources found for this claim", "Content could not be verified through web search"]
             : ["Unable to fully analyze content"],
           sensationalLanguage: [],
@@ -796,7 +735,7 @@ IMPORTANT: If no reliable sources confirm this claim, the credibility score shou
           mainClaim: content.substring(0, 100),
           factCheckResult: "unverified",
           credibilityScore: noSourcesFound ? 15 : 40,
-          explanation: noSourcesFound 
+          explanation: noSourcesFound
             ? "This claim could not be verified - no reliable sources were found reporting this information. Exercise extreme caution."
             : "Analysis could not be completed.",
           sourcesAnalysis: {
@@ -828,9 +767,18 @@ IMPORTANT: If no reliable sources confirm this claim, the credibility score shou
         sources: allSources.length > 0 ? allSources : ['No reliable sources found - Web Search Verification'],
       };
 
-      const credibilityScore = analysis.credibilityScore ?? 
-        (textAnalysis.verdict === 'reliable' ? 85 : 
-         textAnalysis.verdict === 'misleading' ? 55 : 25);
+      const credibilityScore = analysis.credibilityScore ??
+        (textAnalysis.verdict === 'reliable' ? 85 :
+          textAnalysis.verdict === 'misleading' ? 55 : 25);
+
+      // Force verdict based on score thresholds
+      if (credibilityScore < 40) {
+        textAnalysis.verdict = 'fake';
+      } else if (credibilityScore >= 50 && credibilityScore <= 70) {
+        textAnalysis.verdict = 'misleading';
+      } else if (credibilityScore > 90) {
+        textAnalysis.verdict = 'reliable';
+      }
 
       // Enhance explanation with source information
       let explanation = analysis.explanation || `Content classified as ${textAnalysis.verdict}.`;
