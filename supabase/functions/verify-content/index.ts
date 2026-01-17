@@ -263,7 +263,10 @@ serve(async (req) => {
           authenticityScore: analysis.credibilityScore || analysis.authenticityScore
         },
         explanation: analysis.explanation || "Forensic analysis complete",
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        engine: "supabase",
+        lovable: false,
+        platform: "supabase-edge-functions"
       };
     } else {
       const prompt = `Input to verify: "${content}"\n\n${feedbackContext}`;
@@ -276,7 +279,10 @@ serve(async (req) => {
         textAnalysis: analysis.textAnalysis,
         claimExtraction: analysis.claimExtraction,
         explanation: analysis.explanation,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        engine: "supabase",
+        lovable: false,
+        platform: "supabase-edge-functions"
       };
     }
 

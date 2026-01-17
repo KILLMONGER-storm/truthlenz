@@ -141,14 +141,14 @@ A unified verification interface that analyzes any content type and returns cred
 │   Input     │     │  (Vite + TS)     │     │  (Deno)         │
 └─────────────┘     └──────────────────┘     └────────┬────────┘
                                                       │
-                    ┌─────────────────────────────────┼─────────────────────────────────┐
-                    │                                 ▼                                 │
-                    │  ┌──────────────┐    ┌──────────────────┐    ┌───────────────┐   │
-                    │  │ Gemini API   │    │ Lovable AI       │    │ Supabase DB   │   │
-                    │  │ (Web Search) │    │ Gateway          │    │ (Feedback)    │   │
-                    │  └──────────────┘    └──────────────────┘    └───────────────┘   │
-                    │                              AI Layer                             │
-                    └───────────────────────────────────────────────────────────────────┘
+                    ┌─────────────────────────────────┼─────────────────────────┐
+                    │                                 ▼                         │
+                    │  ┌──────────────┐    ┌──────────────────┐                │
+                    │  │ Gemini API   │    │ Supabase DB      │                │
+                    │  │ (AI Models)  │    │ (Feedback)       │                │
+                    │  └──────────────┘    └──────────────────┘                │
+                    │                    Supabase Backend                       │
+                    └───────────────────────────────────────────────────────────┘
 ```
 
 **Component Breakdown:**
@@ -334,9 +334,9 @@ Reason: GAN fingerprints detected in facial features
 **AI/ML Stack:**
 | Model | Use Case |
 |-------|----------|
-| Gemini 2.5 Pro | Primary media analysis |
-| Gemini 2.5 Flash | Secondary verification, web search |
-| Lovable AI Gateway | API orchestration |
+| Gemini 1.5/2.0 Pro | Primary media analysis |
+| Gemini 1.5/2.0 Flash | Secondary verification, text analysis |
+| Supabase Edge Functions | API orchestration and execution |
 
 ---
 
