@@ -88,19 +88,31 @@ const Auth = () => {
 
   const handleGoogleLogin = async () => {
     try {
+      setLoading(true);
+      console.log("Initiating Google Login...");
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: window.location.origin,
+          redirectTo: `${window.location.origin}/auth`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
         },
       });
-      if (error) throw error;
+      if (error) {
+        console.error("Supabase OAuth Error:", error);
+        throw error;
+      }
     } catch (error: any) {
+      console.error("Google Login Catch Error:", error);
       toast({
         title: "Error signing in",
-        description: error.message,
+        description: error.message || "Could not connect to Google",
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
