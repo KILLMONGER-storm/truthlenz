@@ -129,6 +129,11 @@ const getRelevantFeedback = async (content: string, contentType: string): Promis
   }
 };
 
+const extractMimeType = (dataUrl: string): string => {
+  const match = dataUrl.match(/^data:([^;]+);base64,/);
+  return match ? match[1] : "image/jpeg";
+};
+
 // Call Gemini API directly (with fallback support)
 const callGemini = async (
   apiKey: string,
@@ -147,18 +152,23 @@ const callGemini = async (
         ...userContent.map(p => {
           if (p.type === "text") return { text: p.text };
           if (p.type === "image_url") {
+            const mimeType = extractMimeType(p.image_url.url);
             const base64Data = p.image_url.url.split(",")[1] || p.image_url.url;
-            return { inline_data: { mime_type: "image/jpeg", data: base64Data } };
+            console.log(`Media segment detected: ${mimeType}, size: ${base64Data.length} chars`);
+            return { inline_data: { mime_type: mimeType, data: base64Data } };
           }
           return p;
         })
       ];
 
       const body = {
-        contents: [{ role: "user", parts: parts }]
+        contents: [{ role: "user", parts: parts }],
+        generationConfig: {
+          response_mime_type: "application/json",
+        }
       };
 
-      console.log(`Attempting Gemini Analysis (Compatible Mode) with model: ${model}`);
+      console.log(`Attempting Gemini Analysis with model: ${model} (JSON mode)`);
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
         {
@@ -176,8 +186,17 @@ const callGemini = async (
       }
 
       const data = await response.json();
+      if (data.error) {
+        console.warn(`Gemini API error data for ${model}:`, JSON.stringify(data.error));
+        lastError = new Error(`Gemini Error (${model}): ${data.error.message}`);
+        continue;
+      }
+
       const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!content) throw new Error(`No content in Gemini response from ${model}`);
+      if (!content) {
+        console.warn(`Empty response from ${model}. Full response:`, JSON.stringify(data));
+        throw new Error(`No content in Gemini response from ${model}`);
+      }
 
       let cleaned = content.trim();
       // Aggressive JSON extraction from potential markdown
@@ -297,17 +316,15 @@ Respond with JSON:
       console.log(`Starting primary model analysis for ${type}...`);
       let primaryAnalysis;
       try {
-        // Prioritize Gemini 3 Pro, then 2.5 Pro, then 1.5 Pro
+        // Use stable and experimental models that support JSON mode
         primaryAnalysis = await callGemini(GEMINI_API_KEY, [
-          "gemini-3-pro-preview",
-          "gemini-2.5-pro",
-          "gemini-1.5-pro",
-          "gemini-3-flash-preview",
-          "gemini-2.5-flash",
           "gemini-2.0-flash-exp",
-          "gemini-1.5-flash"
+          "gemini-1.5-pro",
+          "gemini-1.5-flash",
+          "gemini-1.5-pro-latest",
+          "gemini-1.5-flash-latest"
         ],
-          "You are a multimodal forensic verification system. Your goal is accuracy. Respond with valid JSON only.",
+          "You are a multimodal forensic verification system. Your goal is extreme accuracy. You MUST respond with a valid JSON object matching the requested schema.",
           userContent
         );
       } catch (e) {
