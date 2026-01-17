@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,13 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (user) {
+      navigate("/");
+    }
+  }, [user, navigate]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,9 +84,18 @@ const Auth = () => {
         setIsLogin(true);
       }
     } catch (error: any) {
+      console.error("Auth Error:", error);
+      let errorMessage = error.message || "An error occurred during authentication.";
+
+      if (error.message === "Invalid login credentials") {
+        errorMessage = "Invalid email or password. Please check your credentials and try again.";
+      } else if (error.message === "Email not confirmed") {
+        errorMessage = "Your email address has not been confirmed yet. Please check your inbox for a verification link.";
+      }
+
       toast({
         title: "Authentication error",
-        description: error.message || "An error occurred during authentication.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
