@@ -6,6 +6,8 @@ import { ResultsSection } from '@/components/ResultsSection';
 import { LoadingState } from '@/components/LoadingState';
 import { InfiniteGrid } from '@/components/ui/the-infinite-grid';
 import { verifyContent, submitFeedback } from '@/lib/verificationApi';
+import { verifyContent as mockVerifyContent } from '@/lib/mockVerification';
+import { useDemoMode } from '@/hooks/useDemoMode';
 import type { VerificationInput, VerificationResult, UserFeedback, VerdictType } from '@/types/verification';
 import { toast } from 'sonner';
 
@@ -14,6 +16,7 @@ const Index = () => {
   const [result, setResult] = useState<VerificationResult | null>(null);
   const [currentImageBase64, setCurrentImageBase64] = useState<string | undefined>();
   const [feedbackHistory, setFeedbackHistory] = useState<UserFeedback[]>();
+  const { isDemoMode } = useDemoMode();
 
   const handleVerify = async (input: VerificationInput) => {
     setIsLoading(true);
@@ -28,9 +31,17 @@ const Index = () => {
         reader.readAsDataURL(input.file);
       }
       
-      const verificationResult = await verifyContent(input);
+      // Use mock verification in demo mode, real API otherwise
+      const verificationResult = isDemoMode 
+        ? await mockVerifyContent(input)
+        : await verifyContent(input);
+      
       setResult(verificationResult);
       setIsLoading(false);
+      
+      if (isDemoMode) {
+        toast.info('Demo Mode: This is a simulated result. Sign in for real AI verification.');
+      }
     } catch (error) {
       toast.error('Verification failed. Please try again.');
       console.error('Verification error:', error);

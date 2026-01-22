@@ -1,12 +1,21 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import CinematicThemeSwitcher from '@/components/ui/cinematic-theme-switcher';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
-import { LogOut } from 'lucide-react';
+import { useDemoMode } from '@/hooks/useDemoMode';
+import { LogOut, FlaskConical } from 'lucide-react';
 import truthLenzLogo from '@/assets/truthlenz-logo.jpg';
 
 export function Header() {
   const { user, signOut } = useAuth();
+  const { isDemoMode, disableDemoMode } = useDemoMode();
+  const navigate = useNavigate();
+
+  const handleExitDemo = () => {
+    disableDemoMode();
+    navigate('/auth');
+  };
 
   return (
     <header className="w-full py-4 px-6 border-b border-border/50 bg-card/50 backdrop-blur-sm sticky top-0 z-50">
@@ -20,6 +29,12 @@ export function Header() {
         </Link>
         
         <nav className="flex items-center gap-4">
+          {isDemoMode && (
+            <Badge variant="secondary" className="bg-amber-500/20 text-amber-500 border-amber-500/30">
+              <FlaskConical className="h-3 w-3 mr-1" />
+              Demo Mode
+            </Badge>
+          )}
           <a href="#" className="hidden md:block text-sm text-muted-foreground hover:text-foreground transition-colors">
             How It Works
           </a>
@@ -27,7 +42,17 @@ export function Header() {
             About
           </a>
           <CinematicThemeSwitcher />
-          {user && (
+          {isDemoMode ? (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleExitDemo}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">Sign In</span>
+            </Button>
+          ) : user && (
             <Button 
               variant="ghost" 
               size="sm" 
