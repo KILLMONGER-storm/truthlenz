@@ -1,5 +1,6 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useDemoMode } from "@/hooks/useDemoMode";
 import { Loader2 } from "lucide-react";
 
 interface ProtectedRouteProps {
@@ -8,6 +9,7 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const { user, loading } = useAuth();
+  const { isDemoMode } = useDemoMode();
 
   if (loading) {
     return (
@@ -20,7 +22,8 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     );
   }
 
-  if (!user) {
+  // Allow access if user is authenticated OR in demo mode
+  if (!user && !isDemoMode) {
     return <Navigate to="/auth" replace />;
   }
 

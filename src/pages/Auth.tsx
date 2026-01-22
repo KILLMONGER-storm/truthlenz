@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useDemoMode } from "@/hooks/useDemoMode";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, EyeOff, Shield, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Shield, Loader2, Play } from "lucide-react";
 import truthLenzLogo from "@/assets/truthlenz-logo.jpg";
 
 const Auth = () => {
@@ -20,12 +21,22 @@ const Auth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
+  const { enableDemoMode } = useDemoMode();
 
   useEffect(() => {
     if (user) {
       navigate("/");
     }
   }, [user, navigate]);
+
+  const handleTryDemo = () => {
+    enableDemoMode();
+    toast({
+      title: "Demo Mode Activated",
+      description: "You can now try TruthLenz without signing in. Note: Demo uses simulated results.",
+    });
+    navigate("/");
+  };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -295,6 +306,23 @@ const Auth = () => {
               </>
             )}
           </form>
+
+          {/* Demo Mode Button */}
+          <div className="mt-4 pt-4 border-t border-border/50">
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full text-muted-foreground hover:text-primary hover:bg-primary/10"
+              onClick={handleTryDemo}
+              disabled={loading}
+            >
+              <Play className="mr-2 h-4 w-4" />
+              Try Demo Without Signing In
+            </Button>
+            <p className="text-xs text-muted-foreground text-center mt-2">
+              Demo mode uses simulated verification results
+            </p>
+          </div>
 
           <div className="mt-6 text-center">
             <button
