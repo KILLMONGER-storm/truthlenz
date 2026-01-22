@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { useDemoMode } from '@/hooks/useDemoMode';
-import { LogOut, FlaskConical } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import truthLenzLogo from '@/assets/truthlenz-logo.jpg';
 
 export function Header() {
@@ -29,12 +29,6 @@ export function Header() {
         </Link>
         
         <nav className="flex items-center gap-4">
-          {isDemoMode && (
-            <Badge variant="secondary" className="bg-amber-500/20 text-amber-500 border-amber-500/30">
-              <FlaskConical className="h-3 w-3 mr-1" />
-              Demo Mode
-            </Badge>
-          )}
           <a href="#" className="hidden md:block text-sm text-muted-foreground hover:text-foreground transition-colors">
             How It Works
           </a>

@@ -31,10 +31,6 @@ const Auth = () => {
 
   const handleTryDemo = () => {
     enableDemoMode();
-    toast({
-      title: "Demo Mode Activated",
-      description: "You can now try TruthLenz without signing in. Note: Demo uses simulated results.",
-    });
     navigate("/");
   };
 
