@@ -38,10 +38,6 @@ const Index = () => {
       
       setResult(verificationResult);
       setIsLoading(false);
-      
-      if (isDemoMode) {
-        toast.info('Demo Mode: This is a simulated result. Sign in for real AI verification.');
-      }
     } catch (error) {
       toast.error('Verification failed. Please try again.');
       console.error('Verification error:', error);
