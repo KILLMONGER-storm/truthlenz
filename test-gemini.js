@@ -1,4 +1,4 @@
-const apiKey = "AIzaSyDLYqKSBh4VwQci8MjCeS7uVnoZ-6g7oVQ";
+const apiKey = "AIzaSyDpmKIrshja4aOU5jDYo2b-S40iYW9VVDw";
 const models = ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-1.5-pro", "gemini-pro", "gemini-2.0-flash-exp"];
 const versions = ["v1beta", "v1"];
 
