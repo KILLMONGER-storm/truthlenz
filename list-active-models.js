@@ -8,12 +8,11 @@ async function listModels() {
         if (!resp.ok) {
             console.error("Error:", JSON.stringify(data, null, 2));
         } else {
-            console.log("Available Models:");
-            data.models.forEach(m => {
-                if (m.supportedGenerationMethods.includes("generateContent")) {
-                    console.log(`- ${m.name} (${m.version})`);
-                }
-            });
+            const models = data.models
+                .filter(m => m.supportedGenerationMethods.includes("generateContent"))
+                .map(m => `- ${m.name} (${m.version})`)
+                .join('\n');
+            console.log(models);
         }
     } catch (e) {
         console.error("Fetch Error:", e);
