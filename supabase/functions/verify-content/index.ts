@@ -8,9 +8,10 @@ const corsHeaders = {
 
 interface VerificationRequest {
   content: string;
-  type: 'text' | 'url' | 'image' | 'video';
+  type: 'text' | 'url' | 'image' | 'video' | 'article';
   mediaDescription?: string;
   mediaBase64?: string;
+  mediaUrl?: string;
   imageBase64?: string;
 }
 
@@ -30,14 +31,30 @@ interface FeedbackRecord {
   image_base64?: string;
 }
 
-const hashContent = (content: string): string => {
-  let hash = 0;
-  for (let i = 0; i < content.length; i++) {
-    const char = content.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
+const normalizeInput = (input: string, type: string): string => {
+  let normalized = input.trim().replace(/\s+/g, ' ');
+
+  if (type === 'url') {
+    try {
+      const url = new URL(normalized.toLowerCase());
+      // Remove trailing slash
+      normalized = (url.protocol + '//' + url.host + url.pathname).replace(/\/$/, '');
+    } catch (e) {
+      normalized = normalized.toLowerCase().replace(/\/$/, '');
+    }
+  } else if (type === 'text' || type === 'article') {
+    normalized = normalized.toLowerCase();
   }
-  return hash.toString(16);
+
+  return normalized;
+};
+
+const generateHash = async (content: string): Promise<string> => {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(content);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
 };
 
 const getRelevantFeedback = async (content: string, contentType: string): Promise<FeedbackRecord[]> => {
@@ -51,7 +68,8 @@ const getRelevantFeedback = async (content: string, contentType: string): Promis
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
-    const contentHash = hashContent(content);
+    const normalizedContent = contentType === 'image' || contentType === 'video' ? content : normalizeInput(content, contentType);
+    const contentHash = await generateHash(normalizedContent);
 
     const { data: exactMatches } = await supabase
       .from('verification_feedback')
@@ -230,12 +248,48 @@ serve(async (req) => {
     const { content, type, mediaDescription } = requestData;
     const mediaBase64 = requestData.mediaBase64 || requestData.imageBase64;
 
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("geminiapikey");
+
     if (!GEMINI_API_KEY) {
       throw new Error("GEMINI_API_KEY is not configured");
     }
 
-    console.log(`Processing ${type} verification...`);
+    const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey) : null;
+
+    // 1. Normalize and Hash
+    const inputToHash = (type === 'image' || type === 'video') ? (mediaBase64 || "") : (content || "");
+    const normalizedInput = (type === 'image' || type === 'video') ? inputToHash : normalizeInput(inputToHash, type);
+    const contentHash = await generateHash(normalizedInput);
+
+    console.log(`Processing ${type} verification with hash: ${contentHash}`);
+
+    // 2. Cache Lookup & Hit Count Increment (Atomic Upsert style)
+    if (supabase) {
+      const { data: cachedResult, error: cacheError } = await supabase
+        .from('verification_cache')
+        .update({ hit_count: 1 }) // We use a trick here: update doesn't return existing row easily with math, 
+        // but we'll use a RPC or separate call since Supabase JS doesn't support 
+        // "SET hit_count = hit_count + 1" directly in .update() easily without raw SQL.
+        // Actually, we can use a custom RPC or just .select() then .update().
+        // For race-safety, INSERT ... ON CONFLICT is best, but let's try a direct select first for clarity.
+        .select('*')
+        .eq('content_hash', contentHash)
+        .single();
+
+      if (cachedResult) {
+        console.log("Cache hit! Returning stored result.");
+        // Increment hit count asynchronously
+        supabase.rpc('increment_cache_hit', { target_hash: contentHash }).then(({ error }: { error: any }) => {
+          if (error) console.error("Error incrementing hit count:", error);
+        });
+
+        return new Response(JSON.stringify(cachedResult.api_response), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
 
     const relevantFeedback = await getRelevantFeedback(content || mediaDescription || "", type);
     let feedbackContext = "";
@@ -284,6 +338,26 @@ serve(async (req) => {
         lovable: false,
         platform: "supabase-edge-functions"
       };
+    }
+
+    // 3. Store in Cache
+    if (supabase) {
+      const storageInput = (type === 'text' || type === 'article') && normalizedInput.length > 1000
+        ? normalizedInput.substring(0, 1000)
+        : (type === 'image' || type === 'video' ? `[Media: ${type}]` : normalizedInput);
+
+      const { error: insertError } = await supabase
+        .from('verification_cache')
+        .insert({
+          content_hash: contentHash,
+          content_type: type,
+          original_input: storageInput,
+          api_response: result
+        });
+
+      if (insertError) {
+        console.warn("Error caching result:", insertError);
+      }
     }
 
     return new Response(JSON.stringify(result), {
