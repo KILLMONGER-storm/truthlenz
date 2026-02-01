@@ -1,3 +1,4 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -7,10 +8,17 @@ const corsHeaders = {
 
 interface VerificationRequest {
   content: string;
-  type: 'text' | 'url' | 'image' | 'video' | 'article';
+  type: 'text' | 'url' | 'image' | 'video';
   mediaDescription?: string;
   mediaBase64?: string;
-  mediaUrl?: string; // Sometimes sent by frontend
+  imageBase64?: string;
+}
+
+interface ImageInspectionDetail {
+  category: string;
+  finding: string;
+  confidence: number;
+  severity: 'low' | 'medium' | 'high';
 }
 
 interface FeedbackRecord {
@@ -22,17 +30,7 @@ interface FeedbackRecord {
   image_base64?: string;
 }
 
-// --------------------------------------------------------------------------------
-// UTILITIES
-// --------------------------------------------------------------------------------
-
-const extractMimeType = (dataUrl: string): string => {
-  const match = dataUrl.match(/^data:([^;]+);base64,/);
-  return match ? match[1] : "image/jpeg";
-};
-
-// Simple hash for feedback matching
-const generateSimpleHash = (content: string): string => {
+const hashContent = (content: string): string => {
   let hash = 0;
   for (let i = 0; i < content.length; i++) {
     const char = content.charCodeAt(i);
@@ -44,17 +42,17 @@ const generateSimpleHash = (content: string): string => {
 
 const getRelevantFeedback = async (content: string, contentType: string): Promise<FeedbackRecord[]> => {
   try {
-    // @ts-ignore: Deno global
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    // @ts-ignore: Deno global
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-    if (!supabaseUrl || !supabaseKey) return [];
+    if (!supabaseUrl || !supabaseKey) {
+      console.log("Supabase credentials not available for feedback lookup");
+      return [];
+    }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
-    const contentHash = generateSimpleHash(content);
+    const contentHash = hashContent(content);
 
-    // Try to get exact matches
     const { data: exactMatches } = await supabase
       .from('verification_feedback')
       .select('original_content, original_verdict, correct_verdict, user_correction, content_type, image_base64')
@@ -63,9 +61,10 @@ const getRelevantFeedback = async (content: string, contentType: string): Promis
       .not('user_correction', 'is', null)
       .limit(3);
 
-    if (exactMatches && exactMatches.length > 0) return exactMatches;
+    if (exactMatches && exactMatches.length > 0) {
+      return exactMatches;
+    }
 
-    // Fallback to recent corrections for this content type
     const { data: recentFeedback } = await supabase
       .from('verification_feedback')
       .select('original_content, original_verdict, correct_verdict, user_correction, content_type, image_base64')
@@ -73,13 +72,18 @@ const getRelevantFeedback = async (content: string, contentType: string): Promis
       .eq('content_type', contentType)
       .not('user_correction', 'is', null)
       .order('created_at', { ascending: false })
-      .limit(5);
+      .limit(10);
 
     return recentFeedback || [];
   } catch (error) {
-    console.error("Feedback lookup error:", error);
+    console.error("Error fetching feedback:", error);
     return [];
   }
+};
+
+const extractMimeType = (dataUrl: string): string => {
+  const match = dataUrl.match(/^data:([^;]+);base64,/);
+  return match ? match[1] : "image/jpeg";
 };
 
 const callGemini = async (
@@ -107,109 +111,166 @@ const callGemini = async (
         })
       ];
 
+      const body = {
+        contents: [{ role: "user", parts: parts }],
+        generationConfig: {
+          response_mime_type: "application/json",
+        }
+      };
+
+      console.log(`Attempting Gemini Analysis with model: ${model}`);
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ role: "user", parts }],
-            generationConfig: { response_mime_type: "application/json" }
-          }),
+          body: JSON.stringify(body),
         }
       );
 
       if (!response.ok) {
-        const text = await response.text();
-        throw new Error(`Gemini ${model} error ${response.status}: ${text}`);
+        const errorText = await response.text();
+        console.warn(`Gemini API (${model}) failed: ${response.status} - ${errorText}`);
+        lastError = new Error(`API error (${model}): ${errorText}`);
+        continue;
       }
 
       const data = await response.json();
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!text) throw new Error("Empty response from Gemini");
+      const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!content) {
+        throw new Error(`No content in Gemini response from ${model}`);
+      }
 
-      let cleaned = text.trim();
-      const match = cleaned.match(/\{[\s\S]*\}/);
-      if (match) cleaned = match[0];
+      let cleaned = content.trim();
+      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        cleaned = jsonMatch[0];
+      }
 
       return JSON.parse(cleaned);
-    } catch (e: any) {
-      console.warn(`Model ${model} failed:`, e.message);
+    } catch (e) {
+      console.warn(`Error using model ${model}:`, e);
       lastError = e;
     }
   }
-  throw lastError || new Error("All AI models failed");
+
+  throw lastError || new Error("All model attempts failed");
 };
 
-// --------------------------------------------------------------------------------
-// PROMPTS
-// --------------------------------------------------------------------------------
-
 const SYSTEM_PROMPTS = {
-  text: `Analyze this content for misinformation and sensational language. Provide step-by-step forensic reasoning. Respond ONLY with valid JSON.
+  text: `You are a Fact-Checking & Forensic Linting System. 
+Goal: Extreme accuracy in detecting misinformation, bias, and fabricated claims.
+Protocol:
+1. Decompose the input into verifiable claims.
+2. Cross-reference against your high-accuracy knowledge base.
+3. Analyze language for sensationalism and emotional manipulation.
+4. Assign a credibility score (0-100).
+5. Provide step-by-step forensic reasoning.
+
+Respond ONLY with valid JSON:
 {
-  "verdict": "reliable" | "misleading" | "fake",
+  "verdict": "reliable" | "misleading" | "fake" | "inconclusive",
   "credibilityScore": number,
   "explanation": "string",
-  "textAnalysis": { "verdict": "string", "reasons": ["string"], "sensationalLanguage": ["string"], "emotionalPatterns": ["string"] },
-  "claimExtraction": { "mainClaim": "string", "factCheckResult": "confirmed" | "disputed" | "false", "sources": ["string"] }
+  "textAnalysis": {
+    "verdict": "string",
+    "reasons": ["string"],
+    "sensationalLanguage": ["string"],
+    "emotionalPatterns": ["string"]
+  },
+  "claimExtraction": {
+    "mainClaim": "string",
+    "factCheckResult": "confirmed" | "disputed" | "false" | "unverified",
+    "sources": ["string"]
+  }
 }`,
-  media: (type: string, context: string, feedback: string) => `Analyze this ${type} for AI generation or digital manipulation. Context: ${context}. ${feedback}. Respond ONLY with valid JSON.
+  media: (type: 'image' | 'video', context: string, feedback: string) => `You are a Multimodal Forensic Auditor specializing in Digital Forgery detection.
+Goal: Detect AI generation, Photoshop manipulation, and deepfakes.
+Context: ${context}
+${feedback}
+
+Protocol: Analyze pixels, texture, lighting, brand authenticity, and human features (teeth, hair, eyes).
+${type === 'video' ? 'Analyze temporal consistency and lip-sync.' : ''}
+
+Respond ONLY with valid JSON:
 {
-  "verdict": "reliable" | "fake",
+  "verdict": "reliable" | "misleading" | "fake" | "inconclusive",
   "credibilityScore": number,
   "explanation": "string",
-  "mediaVerdict": "real" | "edited" | "ai_generated",
-  "analysisDetails": { "pixelAnalysis": [], "textureAnalysis": [], "semanticAnalysis": [] },
-  "factCheckResult": "confirmed" | "false"
+  "mediaVerdict": "real" | "edited" | "ai_generated" | "suspicious" | "inconclusive",
+  "description": "string",
+  "analysisDetails": {
+    "pixelAnalysis": [{"category": "Pixel Analysis", "finding": "string", "confidence": 0-1, "severity": "low" | "medium" | "high"}],
+    "textureAnalysis": [],
+    "semanticAnalysis": [],
+    "brandAuthenticity": [],
+    "humanAnalysis": [],
+    ${type === 'video' ? '"temporalAnalysis": [], "frameConsistency": [],' : ''}
+    "modelAgreement": {
+      "primaryVerdict": "string",
+      "secondaryVerdict": "string",
+      "agreementLevel": "high" | "medium" | "low"
+    }
+  },
+  "flags": ["string"],
+  "factCheckResult": "confirmed" | "disputed" | "false" | "unverified"
 }`
 };
 
-// --------------------------------------------------------------------------------
-// SERVER
-// --------------------------------------------------------------------------------
+const TEXT_MODELS = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"];
+const MEDIA_MODELS = ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.0-flash"];
 
-// @ts-ignore: Deno.serve is modern entry
-Deno.serve(async (req: Request) => {
+serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const data = await req.json() as VerificationRequest;
-    const { content, type, mediaDescription, mediaBase64 } = data;
-    const activeMediaBase64 = mediaBase64 || (data as any).imageBase64;
+    const requestData = await req.json() as VerificationRequest;
+    const { content, type, mediaDescription } = requestData;
+    const mediaBase64 = requestData.mediaBase64 || requestData.imageBase64;
 
-    // @ts-ignore: Deno global
-    const apiKey = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("geminiapikey");
-    if (!apiKey) throw new Error("GEMINI_API_KEY is missing from Supabase Secrets");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("geminiapikey");
+    if (!GEMINI_API_KEY) {
+      throw new Error("GEMINI_API_KEY is not configured");
+    }
 
-    console.log(`Verifying: ${type}`);
+    console.log(`Processing ${type} verification...`);
 
-    const feedback = await getRelevantFeedback(content || mediaDescription || "", type);
-    const feedbackStr = feedback.length > 0
-      ? `\nLessons from corrections:\n${feedback.map(f => `- ${f.user_correction}`).join('\n')}\n`
-      : "";
+    const relevantFeedback = await getRelevantFeedback(content || mediaDescription || "", type);
+    let feedbackContext = "";
+    if (relevantFeedback.length > 0) {
+      feedbackContext = `\nLearn from past corrections:\n${relevantFeedback.map(f => `- Correction: Original '${f.original_verdict}' -> Correct '${f.correct_verdict}'. User: "${f.user_correction}"`).join('\n')}\n`;
+    }
 
     let result;
-    if ((type === 'image' || type === 'video') && activeMediaBase64) {
-      const prompt = SYSTEM_PROMPTS.media(type, content || mediaDescription || "None", feedbackStr);
-      const analysis = await callGemini(apiKey, ["gemini-1.5-pro", "gemini-1.5-flash"], prompt, [{ type: "image_url", image_url: { url: activeMediaBase64 } }]);
+
+    if ((type === 'image' || type === 'video') && mediaBase64) {
+      const prompt = SYSTEM_PROMPTS.media(type, content || mediaDescription || "None", feedbackContext);
+      const userContent = [{ type: "image_url", image_url: { url: mediaBase64 } }];
+
+      const analysis = await callGemini(GEMINI_API_KEY, MEDIA_MODELS, prompt, userContent);
 
       result = {
         id: crypto.randomUUID(),
         credibilityScore: analysis.credibilityScore || 50,
         verdict: analysis.verdict || "inconclusive",
         textAnalysis: { verdict: analysis.verdict, reasons: [] },
-        claimExtraction: { mainClaim: content || "Media", factCheckResult: analysis.factCheckResult || 'unverified' },
-        mediaVerification: { ...analysis, mediaVerdict: analysis.mediaVerdict || analysis.imageVerdict },
-        explanation: analysis.explanation || "Analysis complete",
+        claimExtraction: { mainClaim: content || "Media Analysis", factCheckResult: analysis.factCheckResult || 'unverified' },
+        mediaVerification: {
+          ...analysis,
+          mediaVerdict: analysis.mediaVerdict || analysis.imageVerdict,
+          authenticityScore: analysis.credibilityScore || analysis.authenticityScore
+        },
+        explanation: analysis.explanation || "Forensic analysis complete",
         timestamp: new Date().toISOString(),
-        engine: "supabase", platform: "supabase-edge-functions"
+        engine: "supabase",
+        lovable: false,
+        platform: "supabase-edge-functions"
       };
     } else {
-      const prompt = `Verify: "${content}"\n${feedbackStr}`;
-      const analysis = await callGemini(apiKey, ["gemini-1.5-flash", "gemini-1.5-pro"], SYSTEM_PROMPTS.text, [{ type: "text", text: prompt }]);
+      const prompt = `Input to verify: "${content}"\n\n${feedbackContext}`;
+      const analysis = await callGemini(GEMINI_API_KEY, TEXT_MODELS, SYSTEM_PROMPTS.text, [{ type: "text", text: prompt }]);
 
       result = {
         id: crypto.randomUUID(),
@@ -219,7 +280,9 @@ Deno.serve(async (req: Request) => {
         claimExtraction: analysis.claimExtraction,
         explanation: analysis.explanation,
         timestamp: new Date().toISOString(),
-        engine: "supabase", platform: "supabase-edge-functions"
+        engine: "supabase",
+        lovable: false,
+        platform: "supabase-edge-functions"
       };
     }
 
@@ -227,11 +290,14 @@ Deno.serve(async (req: Request) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
-  } catch (error: any) {
-    console.error("Critical Error:", error.message);
+  } catch (error) {
+    console.error("Verification Error:", error);
     return new Response(
-      JSON.stringify({ error: error.message, details: "Please check your Gemini API Key or project configuration." }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ error: error instanceof Error ? error.message : "Internal Server Error" }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
     );
   }
 });
