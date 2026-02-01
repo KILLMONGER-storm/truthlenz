@@ -1,6 +1,25 @@
-const url = "https://gfbdkbjmddfjlmcllkxx.supabase.co/functions/v1/verify-content";
-// Use anon key from .env (I'll hardcode it here for speed from the viewed .env file earlier)
-const anonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdmYmRrYmptZGRmamxtY2xsa3h4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0MDk3NzQsImV4cCI6MjA4Mzk4NTc3NH0.9dtwlhpCX18D7wcXtvnJ_r3eXAOhQE5fMIBl_bHBQAM";
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+let anonKey = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+let supabaseUrl = process.env.VITE_SUPABASE_URL;
+
+try {
+    const envPath = path.join(__dirname, '.env');
+    if (fs.existsSync(envPath)) {
+        const envContent = fs.readFileSync(envPath, 'utf8');
+        const matchKey = envContent.match(/VITE_SUPABASE_PUBLISHABLE_KEY="([^"]+)"/);
+        if (matchKey) anonKey = matchKey[1];
+        const matchUrl = envContent.match(/VITE_SUPABASE_URL="([^"]+)"/);
+        if (matchUrl) supabaseUrl = matchUrl[1];
+    }
+} catch (e) { }
+
+const url = `${supabaseUrl}/functions/v1/verify-content`;
 
 async function testLive() {
     try {
