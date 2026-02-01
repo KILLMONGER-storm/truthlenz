@@ -239,139 +239,144 @@ const TEXT_MODELS = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"];
 const MEDIA_MODELS = ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.0-flash"];
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+}
 
-  try {
     const requestData = await req.json() as VerificationRequest;
-    const { content, type, mediaDescription } = requestData;
-    const mediaBase64 = requestData.mediaBase64 || requestData.imageBase64;
+const { content, type, mediaDescription } = requestData;
+const mediaBase64 = requestData.mediaBase64 || requestData.imageBase64;
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("geminiapikey");
+const supabaseUrl = Deno.env.get("SUPABASE_URL");
+const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("geminiapikey");
 
-    if (!GEMINI_API_KEY) {
-      throw new Error("GEMINI_API_KEY is not configured");
+if (!GEMINI_API_KEY) {
+  throw new Error("GEMINI_API_KEY is not configured");
+}
+
+const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey) : null;
+
+// 1. Normalize and Hash
+const inputToHash = (type === 'image' || type === 'video') ? (mediaBase64 || "") : (content || "");
+const normalizedInput = (type === 'image' || type === 'video') ? inputToHash : normalizeInput(inputToHash, type);
+const contentHash = await generateHash(normalizedInput);
+
+console.log(`Processing ${type} verification with hash: ${contentHash}`);
+
+// 2. Cache Lookup
+if (supabase) {
+  try {
+    const { data: cachedResult, error: cacheError } = await supabase
+      .from('verification_cache')
+      .select('api_response')
+      .eq('content_hash', contentHash)
+      .maybeSingle();
+
+    if (cacheError) {
+      console.warn("Cache lookup error (table might not exist yet):", cacheError.message);
+    } else if (cachedResult) {
+      console.log("Cache hit! Returning stored result.");
+      // Increment hit count asynchronously
+      supabase.rpc('increment_cache_hit', { target_hash: contentHash }).catch(e => {
+        console.error("Failed to increment hit count:", e);
+      });
+
+      return new Response(JSON.stringify(cachedResult.api_response), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
+  } catch (e) {
+    console.warn("Cache logic failed gracefully:", e);
+  }
+}
 
-    const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey) : null;
+const relevantFeedback = await getRelevantFeedback(content || mediaDescription || "", type);
+let feedbackContext = "";
+if (relevantFeedback.length > 0) {
+  feedbackContext = `\nLearn from past corrections:\n${relevantFeedback.map(f => `- Correction: Original '${f.original_verdict}' -> Correct '${f.correct_verdict}'. User: "${f.user_correction}"`).join('\n')}\n`;
+}
 
-    // 1. Normalize and Hash
-    const inputToHash = (type === 'image' || type === 'video') ? (mediaBase64 || "") : (content || "");
-    const normalizedInput = (type === 'image' || type === 'video') ? inputToHash : normalizeInput(inputToHash, type);
-    const contentHash = await generateHash(normalizedInput);
+let result;
 
-    console.log(`Processing ${type} verification with hash: ${contentHash}`);
+if ((type === 'image' || type === 'video') && mediaBase64) {
+  const prompt = SYSTEM_PROMPTS.media(type, content || mediaDescription || "None", feedbackContext);
+  const userContent = [{ type: "image_url", image_url: { url: mediaBase64 } }];
 
-    // 2. Cache Lookup & Hit Count Increment (Atomic Upsert style)
-    if (supabase) {
-      const { data: cachedResult, error: cacheError } = await supabase
-        .from('verification_cache')
-        .update({ hit_count: 1 }) // We use a trick here: update doesn't return existing row easily with math, 
-        // but we'll use a RPC or separate call since Supabase JS doesn't support 
-        // "SET hit_count = hit_count + 1" directly in .update() easily without raw SQL.
-        // Actually, we can use a custom RPC or just .select() then .update().
-        // For race-safety, INSERT ... ON CONFLICT is best, but let's try a direct select first for clarity.
-        .select('*')
-        .eq('content_hash', contentHash)
-        .single();
+  const analysis = await callGemini(GEMINI_API_KEY, MEDIA_MODELS, prompt, userContent);
 
-      if (cachedResult) {
-        console.log("Cache hit! Returning stored result.");
-        // Increment hit count asynchronously
-        supabase.rpc('increment_cache_hit', { target_hash: contentHash }).then(({ error }: { error: any }) => {
-          if (error) console.error("Error incrementing hit count:", error);
-        });
+  result = {
+    id: crypto.randomUUID(),
+    credibilityScore: analysis.credibilityScore || 50,
+    verdict: analysis.verdict || "inconclusive",
+    textAnalysis: { verdict: analysis.verdict, reasons: [] },
+    claimExtraction: { mainClaim: content || "Media Analysis", factCheckResult: analysis.factCheckResult || 'unverified' },
+    mediaVerification: {
+      ...analysis,
+      mediaVerdict: analysis.mediaVerdict || analysis.imageVerdict,
+      authenticityScore: analysis.credibilityScore || analysis.authenticityScore
+    },
+    explanation: analysis.explanation || "Forensic analysis complete",
+    timestamp: new Date().toISOString(),
+    engine: "supabase",
+    lovable: false,
+    platform: "supabase-edge-functions"
+  };
+} else {
+  const prompt = `Input to verify: "${content}"\n\n${feedbackContext}`;
+  const analysis = await callGemini(GEMINI_API_KEY, TEXT_MODELS, SYSTEM_PROMPTS.text, [{ type: "text", text: prompt }]);
 
-        return new Response(JSON.stringify(cachedResult.api_response), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+  result = {
+    id: crypto.randomUUID(),
+    credibilityScore: analysis.credibilityScore || 50,
+    verdict: analysis.verdict || "inconclusive",
+    textAnalysis: analysis.textAnalysis,
+    claimExtraction: analysis.claimExtraction,
+    explanation: analysis.explanation,
+    timestamp: new Date().toISOString(),
+    engine: "supabase",
+    lovable: false,
+    platform: "supabase-edge-functions"
+  };
+}
+
+// 3. Store in Cache
+if (supabase) {
+  try {
+    const storageInput = (type === 'text' || type === 'article') && normalizedInput.length > 1000
+      ? normalizedInput.substring(0, 1000)
+      : (type === 'image' || type === 'video' ? `[Media: ${type}]` : normalizedInput);
+
+    const { error: insertError } = await supabase
+      .from('verification_cache')
+      .insert({
+        content_hash: contentHash,
+        content_type: type,
+        original_input: storageInput,
+        api_response: result
+      });
+
+    if (insertError) {
+      console.warn("Error caching result:", insertError.message);
     }
+  } catch (e) {
+    console.warn("Cache storage failed gracefully:", e);
+  }
+}
 
-    const relevantFeedback = await getRelevantFeedback(content || mediaDescription || "", type);
-    let feedbackContext = "";
-    if (relevantFeedback.length > 0) {
-      feedbackContext = `\nLearn from past corrections:\n${relevantFeedback.map(f => `- Correction: Original '${f.original_verdict}' -> Correct '${f.correct_verdict}'. User: "${f.user_correction}"`).join('\n')}\n`;
-    }
-
-    let result;
-
-    if ((type === 'image' || type === 'video') && mediaBase64) {
-      const prompt = SYSTEM_PROMPTS.media(type, content || mediaDescription || "None", feedbackContext);
-      const userContent = [{ type: "image_url", image_url: { url: mediaBase64 } }];
-
-      const analysis = await callGemini(GEMINI_API_KEY, MEDIA_MODELS, prompt, userContent);
-
-      result = {
-        id: crypto.randomUUID(),
-        credibilityScore: analysis.credibilityScore || 50,
-        verdict: analysis.verdict || "inconclusive",
-        textAnalysis: { verdict: analysis.verdict, reasons: [] },
-        claimExtraction: { mainClaim: content || "Media Analysis", factCheckResult: analysis.factCheckResult || 'unverified' },
-        mediaVerification: {
-          ...analysis,
-          mediaVerdict: analysis.mediaVerdict || analysis.imageVerdict,
-          authenticityScore: analysis.credibilityScore || analysis.authenticityScore
-        },
-        explanation: analysis.explanation || "Forensic analysis complete",
-        timestamp: new Date().toISOString(),
-        engine: "supabase",
-        lovable: false,
-        platform: "supabase-edge-functions"
-      };
-    } else {
-      const prompt = `Input to verify: "${content}"\n\n${feedbackContext}`;
-      const analysis = await callGemini(GEMINI_API_KEY, TEXT_MODELS, SYSTEM_PROMPTS.text, [{ type: "text", text: prompt }]);
-
-      result = {
-        id: crypto.randomUUID(),
-        credibilityScore: analysis.credibilityScore || 50,
-        verdict: analysis.verdict || "inconclusive",
-        textAnalysis: analysis.textAnalysis,
-        claimExtraction: analysis.claimExtraction,
-        explanation: analysis.explanation,
-        timestamp: new Date().toISOString(),
-        engine: "supabase",
-        lovable: false,
-        platform: "supabase-edge-functions"
-      };
-    }
-
-    // 3. Store in Cache
-    if (supabase) {
-      const storageInput = (type === 'text' || type === 'article') && normalizedInput.length > 1000
-        ? normalizedInput.substring(0, 1000)
-        : (type === 'image' || type === 'video' ? `[Media: ${type}]` : normalizedInput);
-
-      const { error: insertError } = await supabase
-        .from('verification_cache')
-        .insert({
-          content_hash: contentHash,
-          content_type: type,
-          original_input: storageInput,
-          api_response: result
-        });
-
-      if (insertError) {
-        console.warn("Error caching result:", insertError);
-      }
-    }
-
-    return new Response(JSON.stringify(result), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+return new Response(JSON.stringify(result), {
+  headers: { ...corsHeaders, "Content-Type": "application/json" },
+});
 
   } catch (error) {
-    console.error("Verification Error:", error);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Internal Server Error" }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
-  }
+  console.error("Verification Error:", error);
+  return new Response(
+    JSON.stringify({
+      error: error instanceof Error ? error.message : "Internal Server Error",
+      details: error instanceof Error ? error.stack : undefined
+    }),
+    {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    }
+  );
+}
 });
