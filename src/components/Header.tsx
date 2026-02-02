@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { useDemoMode } from '@/hooks/useDemoMode';
 import { LogOut } from 'lucide-react';
-import truthLenzLogo from '@/assets/truthlenz-logo.jpg';
+import truthLenzLogo from '@/assets/truthlenz-logo-v2.png';
 
 export function Header() {
   const { user, signOut } = useAuth();
@@ -21,13 +21,13 @@ export function Header() {
     <header className="w-full py-4 px-6 border-b border-border/50 bg-card/50 backdrop-blur-sm sticky top-0 z-50">
       <div className="max-w-6xl mx-auto flex items-center justify-between">
         <Link to="/" className="flex items-center hover:opacity-80 transition-opacity">
-          <img 
-            src={truthLenzLogo} 
-            alt="TruthLenz Logo" 
+          <img
+            src={truthLenzLogo}
+            alt="TruthLenz Logo"
             className="h-12 w-auto object-contain rounded-lg"
           />
         </Link>
-        
+
         <nav className="flex items-center gap-4">
           <a href="#" className="hidden md:block text-sm text-muted-foreground hover:text-foreground transition-colors">
             How It Works
@@ -37,9 +37,9 @@ export function Header() {
           </a>
           <CinematicThemeSwitcher />
           {isDemoMode ? (
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handleExitDemo}
               className="text-muted-foreground hover:text-foreground"
             >
@@ -47,9 +47,9 @@ export function Header() {
               <span className="hidden sm:inline">Sign In</span>
             </Button>
           ) : user && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={signOut}
               className="text-muted-foreground hover:text-foreground"
             >
