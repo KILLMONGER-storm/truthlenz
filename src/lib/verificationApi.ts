@@ -24,7 +24,7 @@ const fileToBase64 = (file: File): Promise<string> => {
 
 export const verifyContent = async (input: VerificationInput): Promise<VerificationResult> => {
   let mediaBase64: string | undefined;
-  
+
   // Convert image or video to base64 if present
   if (input.file && (input.type === 'image' || input.type === 'video')) {
     try {
@@ -77,29 +77,31 @@ const hashContent = (content: string): string => {
 };
 
 export const submitFeedback = async (feedback: FeedbackSubmission): Promise<void> => {
-  const contentHash = hashContent(feedback.content);
-  
+  const contentHash = hashContent(feedback.content || 'no-content');
+
   // For images, include the base64 data for AI training (limit to ~500KB)
-  const imageBase64ForStorage = feedback.imageBase64 && feedback.imageBase64.length < 700000 
-    ? feedback.imageBase64 
+  const imageBase64ForStorage = feedback.imageBase64 && feedback.imageBase64.length < 700000
+    ? feedback.imageBase64
     : undefined;
-  
+
+  console.log('Submitting feedback for:', feedback.contentType, feedback.isCorrect ? 'positive' : 'negative');
+
   const { error } = await supabase
     .from('verification_feedback')
     .insert({
       content_hash: contentHash,
-      original_content: feedback.content.substring(0, 5000),
-      content_type: feedback.contentType,
-      original_verdict: feedback.originalVerdict,
-      original_score: feedback.originalScore,
+      original_content: (feedback.content || 'No content provided').substring(0, 5000),
+      content_type: feedback.contentType || 'text',
+      original_verdict: feedback.originalVerdict || 'inconclusive',
+      original_score: Math.round(feedback.originalScore || 50),
       is_correct: feedback.isCorrect,
-      user_correction: feedback.userCorrection,
-      correct_verdict: feedback.correctVerdict,
-      image_base64: imageBase64ForStorage,
+      user_correction: feedback.userCorrection || null,
+      correct_verdict: feedback.correctVerdict || null,
+      image_base64: imageBase64ForStorage || null,
     });
 
   if (error) {
-    console.error('Failed to submit feedback:', error);
-    throw new Error('Failed to save feedback');
+    console.error('Supabase feedback error details:', error);
+    throw new Error('Failed to save feedback: ' + error.message);
   }
 };
