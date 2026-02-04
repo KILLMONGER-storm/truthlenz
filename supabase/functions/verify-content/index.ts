@@ -258,6 +258,11 @@ serve(async (req) => {
         textAnalysis: { verdict: analysis.verdict, reasons: [] },
         claimExtraction: { mainClaim: content || "Media Analysis", factCheckResult: analysis.factCheckResult || 'unverified' },
         mediaVerification: {
+          description: analysis.description || content || mediaDescription || "Media content analyzed",
+          isReused: analysis.isReused || false,
+          manipulationDetected: analysis.manipulationDetected || false,
+          matchesClaim: analysis.matchesClaim !== false,
+          flags: analysis.flags || [],
           ...analysis,
           mediaVerdict: analysis.mediaVerdict || analysis.imageVerdict,
           authenticityScore: analysis.credibilityScore || analysis.authenticityScore
