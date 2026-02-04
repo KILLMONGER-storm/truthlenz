@@ -255,8 +255,17 @@ serve(async (req) => {
         id: crypto.randomUUID(),
         credibilityScore: analysis.credibilityScore || 50,
         verdict: analysis.verdict || "inconclusive",
-        textAnalysis: { verdict: analysis.verdict, reasons: [] },
-        claimExtraction: { mainClaim: content || "Media Analysis", factCheckResult: analysis.factCheckResult || 'unverified' },
+        textAnalysis: {
+          verdict: analysis.verdict || "inconclusive",
+          reasons: analysis.reasons || [],
+          sensationalLanguage: analysis.sensationalLanguage || [],
+          emotionalPatterns: analysis.emotionalPatterns || []
+        },
+        claimExtraction: {
+          mainClaim: content || mediaDescription || "Media Analysis",
+          factCheckResult: analysis.factCheckResult || 'unverified',
+          sources: analysis.sources || []
+        },
         mediaVerification: {
           description: analysis.description || content || mediaDescription || "Media content analyzed",
           isReused: analysis.isReused || false,

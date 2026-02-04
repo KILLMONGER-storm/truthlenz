@@ -38,7 +38,7 @@ const resultConfig = {
 export function FactCheckCard({ claim, verdict, score }: FactCheckCardProps) {
   const config = resultConfig[claim.factCheckResult];
   const Icon = config.icon;
-  
+
   return (
     <VerdictGlowCard verdict={verdict} score={score}>
       <div className="flex items-center gap-3 mb-4">
@@ -47,7 +47,7 @@ export function FactCheckCard({ claim, verdict, score }: FactCheckCardProps) {
         </div>
         <h3 className="font-semibold text-lg">Fact Check</h3>
       </div>
-      
+
       <div className="space-y-4">
         {/* Main Claim */}
         <div>
@@ -56,7 +56,7 @@ export function FactCheckCard({ claim, verdict, score }: FactCheckCardProps) {
             "{claim.mainClaim}"
           </p>
         </div>
-        
+
         {/* Fact Check Result */}
         <div>
           <h4 className="text-sm font-medium text-muted-foreground mb-2">Verification Status</h4>
@@ -67,13 +67,13 @@ export function FactCheckCard({ claim, verdict, score }: FactCheckCardProps) {
             </span>
           </div>
         </div>
-        
+
         {/* Sources */}
-        {claim.sources.length > 0 && (
+        {(claim.sources || []).length > 0 && (
           <div>
             <h4 className="text-sm font-medium text-muted-foreground mb-2">Sources Checked</h4>
             <ul className="space-y-1">
-              {claim.sources.map((source, index) => (
+              {(claim.sources || []).map((source, index) => (
                 <li key={index} className="text-sm text-muted-foreground flex items-center gap-2">
                   <div className="w-1.5 h-1.5 bg-primary rounded-full" />
                   {source}
