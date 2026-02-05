@@ -31,9 +31,10 @@ interface FeedbackRecord {
 }
 
 const hashContent = (content: string): string => {
+  const normalized = (content || "").toLowerCase().trim();
   let hash = 0;
-  for (let i = 0; i < content.length; i++) {
-    const char = content.charCodeAt(i);
+  for (let i = 0; i < normalized.length; i++) {
+    const char = normalized.charCodeAt(i);
     hash = ((hash << 5) - hash) + char;
     hash = hash & hash;
   }
@@ -171,10 +172,13 @@ Protocol:
 1. Decompose the input into verifiable claims.
 2. Use the Google Search tool for any claims involving events, statistics, or topics occurring in 2025 or 2026.
 3. MANDATORY: For current year (2026) events, prioritize real-time search results over your internal training data. Your training data might be outdated regarding very recent developments.
-4. Search for multiple high-credibility sources (news organizations, government sites, academic journals).
-5. Cross-reference findings and identify contradictions.
-6. Assign a credibility score (0-100).
-7. Provide step-by-step forensic reasoning, citing specific sources found via search.
+4. MANDATORY: Respect any "Past Corrections" provided below. If a previous human verification indicates a particular fact is true or false, treat that as a primary source of truth.
+5. Search for multiple high-credibility sources (news organizations, government sites, academic journals).
+6. Cross-reference findings and identify contradictions.
+7. Assign a credibility score (0-100).
+8. Provide step-by-step forensic reasoning, citing specific sources found via search.
+
+Special Instruction for Sensitivity: When verifying news about deaths or sensitive events from 2026, ensure you find multiple corroborating official reports or major news outlets before giving a final verdict. If search results consistently report an event as true, do NOT refute it based on personal knowledge.
 
 Respond ONLY with valid JSON:
 {

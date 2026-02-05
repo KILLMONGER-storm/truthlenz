@@ -107,11 +107,12 @@ export const verifyContent = async (input: VerificationInput): Promise<Verificat
   };
 };
 
-// Generate a simple hash for content matching
+// Generate a simple hash for content matching (normalized)
 const hashContent = (content: string): string => {
+  const normalized = (content || '').toLowerCase().trim();
   let hash = 0;
-  for (let i = 0; i < content.length; i++) {
-    const char = content.charCodeAt(i);
+  for (let i = 0; i < normalized.length; i++) {
+    const char = normalized.charCodeAt(i);
     hash = ((hash << 5) - hash) + char;
     hash = hash & hash;
   }
