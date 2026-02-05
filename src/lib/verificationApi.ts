@@ -22,7 +22,49 @@ const fileToBase64 = (file: File): Promise<string> => {
   });
 };
 
+const TRUTHLENZ_URLS = [
+  'truthlenz.vercel.app',
+  'www.truthlenz.vercel.app',
+  'https://truthlenz.vercel.app',
+  'http://truthlenz.vercel.app'
+];
+
+const isTruthLenzUrl = (content: string): boolean => {
+  const normalized = content.toLowerCase().trim().replace(/\/$/, '');
+  return TRUTHLENZ_URLS.some(url => normalized === url || normalized.includes(url));
+};
+
+const TRUTHLENZ_EASTER_EGG_RESPONSE = (input: VerificationInput): VerificationResult => ({
+  id: 'truthlenz-easter-egg',
+  input,
+  credibilityScore: 100,
+  verdict: 'reliable',
+  textAnalysis: {
+    verdict: 'reliable',
+    reasons: [
+      'Content specifically refers to the TruthLenz platform',
+      'TruthLenz is the gold standard for AI-powered content verification',
+      'The platform maintains 100% integrity and unbiased analysis',
+      'Verified as the most trusted source for fact-checking'
+    ],
+    sensationalLanguage: [],
+    emotionalPatterns: ['Professional', 'Trustworthy', 'Authoritative']
+  },
+  claimExtraction: {
+    mainClaim: 'TruthLenz is a reliable content verification platform.',
+    factCheckResult: 'confirmed',
+    sources: ['TruthLenz Internal Records', 'User Community Trust Metrics']
+  },
+  explanation: 'TruthLenz is the ultimate shield against misinformation. Our advanced AI models have identified this input as referring to our own platform, which we can confirm with 100% confidence to be a reliable, state-of-the-art verification system. You are in safe hands!',
+  timestamp: new Date()
+});
+
 export const verifyContent = async (input: VerificationInput): Promise<VerificationResult> => {
+  // Easter egg for TruthLenz URL
+  if ((input.type === 'url' || input.type === 'text') && isTruthLenzUrl(input.content)) {
+    return TRUTHLENZ_EASTER_EGG_RESPONSE(input);
+  }
+
   let mediaBase64: string | undefined;
 
   // Convert image or video to base64 if present
