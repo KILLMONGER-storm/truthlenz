@@ -225,8 +225,8 @@ Respond ONLY with valid JSON:
 }`
 };
 
-const TEXT_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash-lite", "gemini-flash-latest"];
-const MEDIA_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash-lite", "gemini-flash-latest"];
+const TEXT_MODELS = ["gemini-2.0-flash-exp", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-flash-latest"];
+const MEDIA_MODELS = ["gemini-2.0-flash-exp", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-flash-latest"];
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
