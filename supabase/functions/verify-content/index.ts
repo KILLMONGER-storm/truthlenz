@@ -90,7 +90,8 @@ const callGemini = async (
   apiKey: string,
   modelOrModels: string | string[],
   systemPrompt: string,
-  userContent: any[]
+  userContent: any[],
+  tools?: any[]
 ): Promise<any> => {
   const models = Array.isArray(modelOrModels) ? modelOrModels : [modelOrModels];
   let lastError;
@@ -111,12 +112,16 @@ const callGemini = async (
         })
       ];
 
-      const body = {
+      const body: any = {
         contents: [{ role: "user", parts: parts }],
         generationConfig: {
           response_mime_type: "application/json",
         }
       };
+
+      if (tools && tools.length > 0) {
+        body.tools = tools;
+      }
 
       console.log(`Attempting Gemini Analysis with model: ${model}`);
       const response = await fetch(
@@ -158,14 +163,17 @@ const callGemini = async (
 };
 
 const SYSTEM_PROMPTS = {
-  text: `You are a Fact-Checking & Forensic Linting System. 
-Goal: Extreme accuracy in detecting misinformation, bias, and fabricated claims.
+  text: `You are a Fact-Checking & Forensic Linting System with access to real-time Google Search.
+Goal: Extreme accuracy in detecting misinformation, bias, and fabricated claims, especially for recent or emerging topics.
+
 Protocol:
 1. Decompose the input into verifiable claims.
-2. Cross-reference against your high-accuracy knowledge base.
-3. Analyze language for sensationalism and emotional manipulation.
-4. Assign a credibility score (0-100).
-5. Provide step-by-step forensic reasoning.
+2. Use the Google Search tool for any claims involving recent events, statistics, or topics outside your static training data.
+3. Search for multiple high-credibility sources (news organizations, government sites, academic journals).
+4. Cross-reference findings and identify contradictions.
+5. Analyze language for sensationalism and emotional manipulation.
+6. Assign a credibility score (0-100).
+7. Provide step-by-step forensic reasoning, citing specific sources found via search.
 
 Respond ONLY with valid JSON:
 {
@@ -181,7 +189,7 @@ Respond ONLY with valid JSON:
   "claimExtraction": {
     "mainClaim": "string",
     "factCheckResult": "confirmed" | "disputed" | "false" | "unverified",
-    "sources": ["string"]
+    "sources": ["URL or Name of source"]
   }
 }`,
   media: (type: 'image' | 'video', context: string, feedback: string) => `You are a Multimodal Forensic Auditor specializing in Digital Forgery detection.
@@ -284,7 +292,8 @@ serve(async (req) => {
       };
     } else {
       const prompt = `Input to verify: "${content}"\n\n${feedbackContext}`;
-      const analysis = await callGemini(GEMINI_API_KEY, TEXT_MODELS, SYSTEM_PROMPTS.text, [{ type: "text", text: prompt }]);
+      const tools = [{ google_search: {} }];
+      const analysis = await callGemini(GEMINI_API_KEY, TEXT_MODELS, SYSTEM_PROMPTS.text, [{ type: "text", text: prompt }], tools);
 
       result = {
         id: crypto.randomUUID(),
