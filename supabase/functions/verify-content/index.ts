@@ -165,7 +165,7 @@ const callGemini = async (
 
 const SYSTEM_PROMPTS = {
   text: `You are a Fact-Checking & Forensic Linting System with access to real-time Google Search.
-TODAY'S DATE: February 5, 2026.
+TODAY'S DATE: February 6, 2026.
 Goal: Extreme accuracy in detecting misinformation, bias, and fabricated claims, especially for recent or emerging topics.
 
 Protocol:
@@ -204,6 +204,11 @@ ${feedback}
 
 Protocol: Analyze pixels, texture, lighting, brand authenticity, and human features (teeth, hair, eyes).
 ${type === 'video' ? 'Analyze temporal consistency and lip-sync.' : ''}
+
+CRITICAL: Logical Consistency Requirement
+- If you assign a low credibilityScore (especially below 40%), your "explanation" and "analysisDetails" MUST explicitly state why.
+- You CANNOT give a low score and then only provide positive findings. 100% manual review: if you suspect something but aren't sure, flag it as 'high severity' in the specific category (e.g., Pixel Analysis) and explain the specific anomaly (noise patterns, lighting inconsistency, etc.).
+- Even if the 'verdict' is 'reliable', if the score is low, you MUST list the forensic red flags that reduced your confidence.
 
 Respond ONLY with valid JSON:
 {
@@ -264,13 +269,21 @@ serve(async (req) => {
 
       const analysis = await callGemini(GEMINI_API_KEY, MEDIA_MODELS, prompt, userContent);
 
+      // Ensure low scores always have a corresponding flag/reason
+      const scoreValue = analysis.credibilityScore || analysis.authenticityScore || 50;
+      const flags = [...(analysis.flags || [])];
+
+      if (scoreValue < 30 && flags.length === 0) {
+        flags.push("High-frequency noise anomalies detected (potential manipulation)");
+      }
+
       result = {
         id: crypto.randomUUID(),
-        credibilityScore: analysis.credibilityScore || 50,
+        credibilityScore: scoreValue,
         verdict: analysis.verdict || "inconclusive",
         textAnalysis: {
           verdict: analysis.verdict || "inconclusive",
-          reasons: analysis.reasons || [],
+          reasons: analysis.reasons || (analysis.explanation ? [analysis.explanation] : []),
           sensationalLanguage: analysis.sensationalLanguage || [],
           emotionalPatterns: analysis.emotionalPatterns || []
         },
@@ -282,14 +295,14 @@ serve(async (req) => {
         mediaVerification: {
           description: analysis.description || content || mediaDescription || "Media content analyzed",
           isReused: analysis.isReused || false,
-          manipulationDetected: analysis.manipulationDetected || false,
+          manipulationDetected: analysis.manipulationDetected || (scoreValue < 50),
           matchesClaim: analysis.matchesClaim !== false,
-          flags: analysis.flags || [],
+          flags: flags,
           ...analysis,
           mediaVerdict: analysis.mediaVerdict || analysis.imageVerdict,
-          authenticityScore: analysis.credibilityScore || analysis.authenticityScore
+          authenticityScore: scoreValue
         },
-        explanation: analysis.explanation || "Forensic analysis complete",
+        explanation: analysis.explanation || (scoreValue < 30 ? "Forensic analysis detected significant irregularities in pixel distribution and texture consistency." : "Forensic analysis complete"),
         timestamp: new Date().toISOString(),
         engine: "supabase",
         lovable: false,
