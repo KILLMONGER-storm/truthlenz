@@ -10,7 +10,18 @@ interface MediaVerificationCardProps {
   score?: number;
 }
 
-function getVerdictConfig(verdict: MediaVerification['imageVerdict']) {
+function getVerdictConfig(verdict: MediaVerification['imageVerdict'], score?: number) {
+  // Flag as suspicious/fake if score is very low even if verdict is real
+  if (score !== undefined && score < 20) {
+    return {
+      label: 'Critical Risk',
+      icon: ShieldX,
+      color: 'text-fake',
+      bg: 'bg-fake-bg',
+      border: 'border-fake/30'
+    };
+  }
+
   switch (verdict) {
     case 'real':
       return {
@@ -146,9 +157,18 @@ function InspectionCategory({
 }
 
 export function MediaVerificationCard({ verification, verdict, score }: MediaVerificationCardProps) {
-  const verdictConfig = getVerdictConfig(verification.imageVerdict);
+  const effectiveScore = score ?? verification.authenticityScore;
+  const isLowScore = effectiveScore !== undefined && effectiveScore < 20;
+
+  const verdictConfig = getVerdictConfig(verification.imageVerdict, effectiveScore);
   const VerdictIcon = verdictConfig.icon;
   const hasEnhancedAnalysis = !!verification.analysisDetails;
+
+  const displayFlags = isLowScore
+    ? ['CRITICAL AUTHENTICITY RISK', ...(verification.flags || [])]
+    : (verification.flags || []);
+
+  const displayScore = effectiveScore;
 
   return (
     <VerdictGlowCard className="col-span-full" verdict={verdict} score={score}>
@@ -198,25 +218,30 @@ export function MediaVerificationCard({ verification, verdict, score }: MediaVer
                   strokeWidth="8"
                   strokeLinecap="round"
                   className={cn(
-                    verification.authenticityScore >= 70 ? "text-reliable" :
-                      verification.authenticityScore >= 40 ? "text-misleading" :
-                        "text-fake"
+                    isLowScore ? "text-fake" :
+                      displayScore >= 70 ? "text-reliable" :
+                        displayScore >= 40 ? "text-misleading" :
+                          "text-fake"
                   )}
-                  strokeDasharray={`${verification.authenticityScore * 2.83} 283`}
+                  strokeDasharray={`${displayScore * 2.83} 283`}
                 />
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-xl font-bold">{verification.authenticityScore}%</span>
+                <span className={cn("text-xl font-bold", isLowScore && "text-fake")}>{displayScore}%</span>
               </div>
             </div>
             <div>
-              <h4 className="font-semibold">Authenticity Score</h4>
+              <h4 className={cn("font-semibold", isLowScore && "text-fake")}>
+                {isLowScore ? "Critical Authenticity Warning" : "Authenticity Score"}
+              </h4>
               <p className="text-sm text-muted-foreground">
-                {verification.authenticityScore >= 70
-                  ? "Image appears genuine with high confidence"
-                  : verification.authenticityScore >= 40
-                    ? "Some concerns detected - review findings below"
-                    : "Significant authenticity issues detected"
+                {isLowScore
+                  ? "Critically low authenticity score - please review reasons below"
+                  : displayScore >= 70
+                    ? "Image appears genuine with high confidence"
+                    : displayScore >= 40
+                      ? "Some concerns detected - review findings below"
+                      : "Significant authenticity issues detected"
                 }
               </p>
             </div>
@@ -290,35 +315,35 @@ export function MediaVerificationCard({ verification, verdict, score }: MediaVer
               title="Pixel-Level Analysis"
               icon={Eye}
               details={verification.analysisDetails?.pixelAnalysis}
-              defaultOpen={verification.analysisDetails?.pixelAnalysis?.some(d => d.severity === 'high')}
+              defaultOpen={isLowScore || verification.analysisDetails?.pixelAnalysis?.some(d => d.severity === 'high')}
             />
 
             <InspectionCategory
               title="Texture Analysis"
               icon={Fingerprint}
               details={verification.analysisDetails?.textureAnalysis}
-              defaultOpen={verification.analysisDetails?.textureAnalysis?.some(d => d.severity === 'high')}
+              defaultOpen={isLowScore || verification.analysisDetails?.textureAnalysis?.some(d => d.severity === 'high')}
             />
 
             <InspectionCategory
               title="Semantic Analysis"
               icon={Box}
               details={verification.analysisDetails?.semanticAnalysis}
-              defaultOpen={verification.analysisDetails?.semanticAnalysis?.some(d => d.severity === 'high')}
+              defaultOpen={isLowScore || verification.analysisDetails?.semanticAnalysis?.some(d => d.severity === 'high')}
             />
 
             <InspectionCategory
               title="Brand & Object Authenticity"
               icon={ShieldCheck}
               details={verification.analysisDetails?.brandAuthenticity}
-              defaultOpen={verification.analysisDetails?.brandAuthenticity?.some(d => d.severity === 'high')}
+              defaultOpen={isLowScore || verification.analysisDetails?.brandAuthenticity?.some(d => d.severity === 'high')}
             />
 
             <InspectionCategory
               title="Human Analysis"
               icon={Users}
               details={verification.analysisDetails?.humanAnalysis}
-              defaultOpen={verification.analysisDetails?.humanAnalysis?.some(d => d.severity === 'high')}
+              defaultOpen={isLowScore || verification.analysisDetails?.humanAnalysis?.some(d => d.severity === 'high')}
             />
           </div>
         )}
@@ -417,14 +442,19 @@ export function MediaVerificationCard({ verification, verdict, score }: MediaVer
         )}
 
         {/* Flags */}
-        {verification.flags?.length > 0 && (
+        {displayFlags.length > 0 && (
           <div className="pt-4 border-t border-border">
             <h4 className="text-sm font-medium text-muted-foreground mb-2">Warnings & Flags</h4>
             <div className="flex flex-wrap gap-2">
-              {verification.flags.map((flag, index) => (
+              {displayFlags.map((flag, index) => (
                 <span
                   key={index}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-misleading-bg text-misleading text-xs font-medium rounded-full"
+                  className={cn(
+                    "inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full",
+                    flag === 'CRITICAL AUTHENTICITY RISK'
+                      ? "bg-fake text-white animate-pulse"
+                      : "bg-misleading-bg text-misleading"
+                  )}
                 >
                   <AlertTriangle className="w-3 h-3" />
                   {flag}

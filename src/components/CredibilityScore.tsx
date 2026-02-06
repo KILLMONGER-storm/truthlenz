@@ -40,20 +40,21 @@ const sizeConfig = {
 
 export function CredibilityScore({ score, verdict, size = 'md' }: CredibilityScoreProps) {
   const [animatedScore, setAnimatedScore] = useState(0);
-  const config = verdictConfig[verdict];
+  const isLowScore = score < 20;
+  const config = isLowScore ? verdictConfig.fake : verdictConfig[verdict];
   const sizes = sizeConfig[size];
   const Icon = config.icon;
-  
+
   // Calculate stroke dashoffset for the circular progress
   const circumference = 2 * Math.PI * 45; // radius = 45
   const strokeDashoffset = circumference - (animatedScore / 100) * circumference;
-  
+
   useEffect(() => {
     const duration = 1500;
     const steps = 60;
     const increment = score / steps;
     let current = 0;
-    
+
     const timer = setInterval(() => {
       current += increment;
       if (current >= score) {
@@ -63,10 +64,10 @@ export function CredibilityScore({ score, verdict, size = 'md' }: CredibilitySco
         setAnimatedScore(Math.round(current));
       }
     }, duration / steps);
-    
+
     return () => clearInterval(timer);
   }, [score]);
-  
+
   return (
     <div className="flex flex-col items-center gap-3">
       <div className={`relative ${sizes.container}`}>
@@ -95,7 +96,7 @@ export function CredibilityScore({ score, verdict, size = 'md' }: CredibilitySco
             }}
           />
         </svg>
-        
+
         {/* Center content */}
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span className={`font-bold ${sizes.text} ${config.colorClass}`}>
@@ -103,7 +104,7 @@ export function CredibilityScore({ score, verdict, size = 'md' }: CredibilitySco
           </span>
         </div>
       </div>
-      
+
       {/* Verdict badge */}
       <div className={`flex items-center gap-2 px-4 py-2 rounded-full ${config.bgClass}`}>
         <Icon className={`w-4 h-4 ${config.colorClass}`} />
