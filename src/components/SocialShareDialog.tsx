@@ -117,7 +117,6 @@ export function SocialShareDialog({ isOpen, onOpenChange, result }: SocialShareD
                         >
                             <Twitter className={`w-8 h-8 ${platform === 'x' ? 'text-primary-foreground' : 'text-[#1DA1F2]'}`} />
                             <span className="font-semibold">X (Twitter)</span>
-                            {isConnected.x && <CheckCircle2 className="w-4 h-4 absolute top-2 right-2 text-green-500" />}
                         </Button>
                         <Button
                             variant={platform === 'instagram' ? 'default' : 'outline'}
@@ -126,7 +125,6 @@ export function SocialShareDialog({ isOpen, onOpenChange, result }: SocialShareD
                         >
                             <Instagram className={`w-8 h-8 ${platform === 'instagram' ? 'text-primary-foreground' : 'text-[#E4405F]'}`} />
                             <span className="font-semibold">Instagram</span>
-                            {isConnected.instagram && <CheckCircle2 className="w-4 h-4 absolute top-2 right-2 text-green-500" />}
                         </Button>
                     </div>
 
@@ -168,6 +166,6 @@ export function SocialShareDialog({ isOpen, onOpenChange, result }: SocialShareD
                     )}
                 </div>
             </DialogContent>
-        </Dialog>
+        </Dialog >
     );
 }
