@@ -36,7 +36,7 @@ const resultConfig = {
 };
 
 export function FactCheckCard({ claim, verdict, score }: FactCheckCardProps) {
-  const config = resultConfig[claim.factCheckResult];
+  const config = resultConfig[claim.factCheckResult] || resultConfig.unverified;
   const Icon = config.icon;
 
   return (

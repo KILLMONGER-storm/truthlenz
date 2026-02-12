@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { VerdictType } from '@/types/verification';
-import { Shield, AlertTriangle, XCircle } from 'lucide-react';
+import { Shield, AlertTriangle, XCircle, HelpCircle } from 'lucide-react';
 
 interface CredibilityScoreProps {
   score: number;
@@ -30,6 +30,13 @@ const verdictConfig = {
     bgClass: 'bg-fake-bg',
     strokeClass: 'stroke-fake',
   },
+  inconclusive: {
+    label: 'Inconclusive',
+    icon: HelpCircle,
+    colorClass: 'text-muted-foreground',
+    bgClass: 'bg-muted',
+    strokeClass: 'stroke-muted',
+  },
 };
 
 const sizeConfig = {
@@ -41,7 +48,7 @@ const sizeConfig = {
 export function CredibilityScore({ score, verdict, size = 'md' }: CredibilityScoreProps) {
   const [animatedScore, setAnimatedScore] = useState(0);
   const isLowScore = score < 20;
-  const config = isLowScore ? verdictConfig.fake : verdictConfig[verdict];
+  const config = (isLowScore ? verdictConfig.fake : (verdictConfig[verdict] || verdictConfig.inconclusive));
   const sizes = sizeConfig[size];
   const Icon = config.icon;
 

@@ -237,6 +237,67 @@ Respond ONLY with valid JSON:
 
 const TEXT_MODELS = ["gemini-2.0-flash-exp", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-flash-latest"];
 const MEDIA_MODELS = ["gemini-2.0-flash-exp", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-flash-latest"];
+const OPENAI_MODELS = ["gpt-4o", "gpt-4-turbo", "gpt-4"];
+
+const callOpenAI = async (
+  apiKey: string,
+  modelOrModels: string | string[],
+  systemPrompt: string,
+  userContent: any[]
+): Promise<any> => {
+  const models = Array.isArray(modelOrModels) ? modelOrModels : [modelOrModels];
+  let lastError;
+
+  for (const model of models) {
+    try {
+      const messages = [
+        { role: "system", content: systemPrompt },
+        {
+          role: "user",
+          content: userContent.map(p => {
+            if (p.type === "text") return { type: "text", text: p.text };
+            if (p.type === "image_url") return { type: "image_url", image_url: p.image_url };
+            return p;
+          })
+        }
+      ];
+
+      console.log(`Attempting OpenAI Analysis with model: ${model}`);
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: model,
+          messages: messages,
+          response_format: { type: "json_object" }
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.warn(`OpenAI API (${model}) failed: ${response.status} - ${errorText}`);
+        lastError = new Error(`OpenAI API error (${model}): ${errorText}`);
+        continue;
+      }
+
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content;
+      if (!content) {
+        throw new Error(`No content in OpenAI response from ${model}`);
+      }
+
+      return JSON.parse(content);
+    } catch (e) {
+      console.warn(`Error using OpenAI model ${model}:`, e);
+      lastError = e;
+    }
+  }
+
+  throw lastError || new Error("All OpenAI model attempts failed");
+};
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -249,8 +310,10 @@ serve(async (req) => {
     const mediaBase64 = requestData.mediaBase64 || requestData.imageBase64;
 
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("geminiapikey");
-    if (!GEMINI_API_KEY) {
-      throw new Error("GEMINI_API_KEY is not configured");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+
+    if (!GEMINI_API_KEY && !OPENAI_API_KEY) {
+      throw new Error("Neither GEMINI_API_KEY nor OPENAI_API_KEY is configured");
     }
 
     console.log(`Processing ${type} verification...`);
@@ -267,7 +330,26 @@ serve(async (req) => {
       const prompt = SYSTEM_PROMPTS.media(type, content || mediaDescription || "None", feedbackContext);
       const userContent = [{ type: "image_url", image_url: { url: mediaBase64 } }];
 
-      const analysis = await callGemini(GEMINI_API_KEY, MEDIA_MODELS, prompt, userContent);
+      let analysis;
+      let usedEngine = "none";
+
+      if (OPENAI_API_KEY) {
+        try {
+          analysis = await callOpenAI(OPENAI_API_KEY, OPENAI_MODELS, prompt, userContent);
+          usedEngine = "openai";
+        } catch (openaiError) {
+          console.warn("OpenAI failed, falling back to Gemini:", openaiError);
+        }
+      }
+
+      if (!analysis && GEMINI_API_KEY) {
+        analysis = await callGemini(GEMINI_API_KEY, MEDIA_MODELS, prompt, userContent);
+        usedEngine = "gemini";
+      }
+
+      if (!analysis) {
+        throw new Error("All AI engines failed to process media request");
+      }
 
       // Ensure low scores always have a corresponding flag/reason
       const scoreValue = analysis.credibilityScore || analysis.authenticityScore || 50;
@@ -304,14 +386,35 @@ serve(async (req) => {
         },
         explanation: analysis.explanation || (scoreValue < 30 ? "Forensic analysis detected significant irregularities in pixel distribution and texture consistency." : "Forensic analysis complete"),
         timestamp: new Date().toISOString(),
-        engine: "supabase",
+        engine: usedEngine,
         lovable: false,
         platform: "supabase-edge-functions"
       };
     } else {
       const prompt = `Input to verify: "${content}"\n\n${feedbackContext}`;
       const tools = [{ google_search: {} }];
-      const analysis = await callGemini(GEMINI_API_KEY, TEXT_MODELS, SYSTEM_PROMPTS.text, [{ type: "text", text: prompt }], tools);
+
+      let analysis;
+      let usedEngine = "none";
+
+      if (OPENAI_API_KEY) {
+        try {
+          // Note: OpenAI doesn't support the same google_search tool directly in this call
+          analysis = await callOpenAI(OPENAI_API_KEY, OPENAI_MODELS, SYSTEM_PROMPTS.text, [{ type: "text", text: prompt }]);
+          usedEngine = "openai";
+        } catch (openaiError) {
+          console.warn("OpenAI failed, falling back to Gemini:", openaiError);
+        }
+      }
+
+      if (!analysis && GEMINI_API_KEY) {
+        analysis = await callGemini(GEMINI_API_KEY, TEXT_MODELS, SYSTEM_PROMPTS.text, [{ type: "text", text: prompt }], tools);
+        usedEngine = "gemini";
+      }
+
+      if (!analysis) {
+        throw new Error("All AI engines failed to process text request");
+      }
 
       result = {
         id: crypto.randomUUID(),
@@ -321,7 +424,7 @@ serve(async (req) => {
         claimExtraction: analysis.claimExtraction,
         explanation: analysis.explanation,
         timestamp: new Date().toISOString(),
-        engine: "supabase",
+        engine: usedEngine,
         lovable: false,
         platform: "supabase-edge-functions"
       };

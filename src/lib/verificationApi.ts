@@ -148,3 +148,18 @@ export const submitFeedback = async (feedback: FeedbackSubmission): Promise<void
     throw new Error('Failed to save feedback: ' + error.message);
   }
 };
+
+export const shareVerdict = async (verdictId: string, platform: 'x' | 'instagram', caption: string): Promise<void> => {
+  const { data, error } = await supabase.functions.invoke('share-verdict', {
+    body: { verdictId, platform, caption },
+  });
+
+  if (error) {
+    console.error('Sharing error:', error);
+    throw new Error(error.message || 'Failed to share verdict');
+  }
+
+  if (!data?.success) {
+    throw new Error(data?.error || 'Failed to share verdict');
+  }
+};

@@ -1,6 +1,6 @@
 export type VerificationType = 'text' | 'url' | 'image' | 'video';
 
-export type VerdictType = 'reliable' | 'misleading' | 'fake';
+export type VerdictType = 'reliable' | 'misleading' | 'fake' | 'inconclusive';
 
 export interface VerificationInput {
   type: VerificationType;
