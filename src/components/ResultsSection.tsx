@@ -7,8 +7,8 @@ import type { VerificationResult, VerdictType } from '@/types/verification';
 import { ArrowLeft, Clock, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { VerdictGlowCard } from '@/components/ui/verdict-glow-card';
-import { SocialShareDialog } from './SocialShareDialog';
-import { useState } from 'react';
+import { SocialShareDialog } from '@/components/SocialShareDialog';
+import { useState, useEffect } from 'react';
 
 interface ResultsSectionProps {
   result: VerificationResult;
@@ -18,6 +18,17 @@ interface ResultsSectionProps {
 
 export function ResultsSection({ result, onNewVerification, onFeedback }: ResultsSectionProps) {
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+  const [hasPrompted, setHasPrompted] = useState(false);
+
+  useEffect(() => {
+    if (result && !hasPrompted) {
+      const timer = setTimeout(() => {
+        setIsShareDialogOpen(true);
+        setHasPrompted(true);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [result, hasPrompted]);
 
   return (
     <div className="w-full max-w-4xl mx-auto animate-fade-in">
