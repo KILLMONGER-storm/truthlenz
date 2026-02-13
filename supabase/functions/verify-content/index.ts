@@ -178,7 +178,7 @@ Protocol:
 7. Assign a credibility score (0-100).
 8. Provide step-by-step forensic reasoning, citing specific sources found via search.
 
-Special Instruction for Sensitivity: When verifying news about deaths or sensitive events from 2026, ensure you find multiple corroborating official reports or major news outlets before giving a final verdict. If search results consistently report an event as true, do NOT refute it based on personal knowledge.
+Special Instruction for URLs: If the input starts with http or is flagged as a URL, your FIRST step is to visit that URL using the google_search tool to extract all text, headlines, and claims. Perform a forensic analysis on the *extracted content*, not just the URL string itself. Check the site's reputation and look for bias or manipulation.
 
 Respond ONLY with valid JSON:
 {
@@ -408,7 +408,11 @@ serve(async (req) => {
       }
 
       if (!analysis && GEMINI_API_KEY) {
-        analysis = await callGemini(GEMINI_API_KEY, TEXT_MODELS, SYSTEM_PROMPTS.text, [{ type: "text", text: prompt }], tools);
+        let finalPrompt = prompt;
+        if (type === 'url') {
+          finalPrompt = `CRITICAL: This is a direct URL link. \n1. Visit this URL: "${content}"\n2. Extract its content and claims.\n3. Verify if these claims are accurate vs fake.\n4. Analyze the source's credibility.\n\nInput to verify: ${content}\n\n${feedbackContext}`;
+        }
+        analysis = await callGemini(GEMINI_API_KEY, TEXT_MODELS, SYSTEM_PROMPTS.text, [{ type: "text", text: finalPrompt }], tools);
         usedEngine = "gemini";
       }
 
