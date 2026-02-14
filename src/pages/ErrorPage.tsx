@@ -1,5 +1,5 @@
 import React from 'react';
-import { RetroTvError } from '@/components/ui/RetroTvError';
+import { GlitchyError } from '@/components/ui/GlitchyError';
 import { Alert, AlertTitle, AlertDescription, AlertContent } from '@/components/ui/alert-v2';
 import { ShieldAlert, RefreshCcw, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -21,14 +21,20 @@ const ErrorPage: React.FC<ErrorPageProps> = ({
     const navigate = useNavigate();
 
     return (
-        <div className="min-h-screen bg-background flex items-center justify-center p-6 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-background via-background to-black/20">
-            <div className="max-w-2xl w-full flex flex-col items-center">
-                <RetroTvError
+        <div className="min-h-screen bg-background flex items-center justify-center p-6 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-background via-background to-black">
+            <div className="max-w-4xl w-full flex flex-col items-center">
+                <GlitchyError
                     errorCode={errorCode}
-                    errorMessage={errorMessage}
+                    color="white"
                 />
 
-                <div className="w-full mt-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                <div className="text-center -mt-10 mb-12">
+                    <h2 className="text-xl font-mono text-muted-foreground tracking-[0.3em] uppercase animate-pulse">
+                        {errorMessage}
+                    </h2>
+                </div>
+
+                <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-700">
                     <Alert variant={variant} size="lg" layout="complex" className="border-border/50 bg-card/30 backdrop-blur-xl shadow-2xl">
                         <ShieldAlert className="w-6 h-6 mt-1" />
                         <AlertContent className="text-left">
