@@ -5,11 +5,15 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { GlowCard } from '@/components/ui/spotlight-card';
 import { StardustButton } from '@/components/ui/stardust-button';
-import type { VerificationType, VerificationInput } from '@/types/verification';
+import { ModelSelector } from './ModelSelector';
+import type { VerificationType, VerificationInput, ModelInfo } from '@/types/verification';
 
 interface InputSectionProps {
   onVerify: (input: VerificationInput) => void;
   isLoading: boolean;
+  models: ModelInfo[];
+  selectedModelId: string;
+  onSelectModel: (id: string) => void;
 }
 
 const inputTypes: { type: VerificationType; icon: typeof FileText; label: string; description: string }[] = [
@@ -19,32 +23,38 @@ const inputTypes: { type: VerificationType; icon: typeof FileText; label: string
   { type: 'video', icon: Video, label: 'Video', description: 'Upload video to analyze' },
 ];
 
-export function InputSection({ onVerify, isLoading }: InputSectionProps) {
+export function InputSection({
+  onVerify,
+  isLoading,
+  models,
+  selectedModelId,
+  onSelectModel
+}: InputSectionProps) {
   const [activeType, setActiveType] = useState<VerificationType>('text');
   const [textContent, setTextContent] = useState('');
   const [urlContent, setUrlContent] = useState('');
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [mediaDescription, setMediaDescription] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setUploadedFile(file);
     }
   };
-  
+
   const removeFile = () => {
     setUploadedFile(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
-  
+
   const handleSubmit = () => {
     let content = '';
     let file: File | undefined;
-    
+
     switch (activeType) {
       case 'text':
         content = textContent;
@@ -58,12 +68,12 @@ export function InputSection({ onVerify, isLoading }: InputSectionProps) {
         file = uploadedFile || undefined;
         break;
     }
-    
+
     if (!content.trim() && !file) return;
-    
+
     onVerify({ type: activeType, content, file });
   };
-  
+
   const isValid = () => {
     switch (activeType) {
       case 'text':
@@ -75,7 +85,7 @@ export function InputSection({ onVerify, isLoading }: InputSectionProps) {
         return uploadedFile !== null;
     }
   };
-  
+
   return (
     <div className="w-full max-w-3xl mx-auto">
       {/* Input Type Selector with Neobrutalist Buttons */}
@@ -92,39 +102,39 @@ export function InputSection({ onVerify, isLoading }: InputSectionProps) {
           </Button>
         ))}
       </div>
-      
+
       {/* Input Area with GlowCard */}
-      <GlowCard 
-        customSize 
-        glowColor="blue" 
+      <GlowCard
+        customSize
+        glowColor="blue"
         className="w-full !aspect-auto !grid-rows-1"
       >
-        <div className="relative z-10">
+        <div className="relative z-10 h-full">
           {activeType === 'text' && (
             <Textarea
               placeholder="Paste news article, forwarded message, or any text you want to verify..."
               value={textContent}
               onChange={(e) => setTextContent(e.target.value)}
-              className="min-h-[180px] resize-none border-0 bg-transparent text-base focus-visible:ring-0 placeholder:text-muted-foreground/60"
+              className="min-h-[180px] w-full resize-none border-0 bg-transparent text-base focus-visible:ring-0 placeholder:text-muted-foreground/60 pb-12"
             />
           )}
-          
+
           {activeType === 'url' && (
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 h-12">
               <div className="flex-1">
                 <Input
                   type="url"
                   placeholder="https://example.com/news-article"
                   value={urlContent}
                   onChange={(e) => setUrlContent(e.target.value)}
-                  className="border-0 bg-transparent text-base h-12 focus-visible:ring-0 placeholder:text-muted-foreground/60"
+                  className="border-0 bg-transparent text-base h-full focus-visible:ring-0 placeholder:text-muted-foreground/60"
                 />
               </div>
             </div>
           )}
-          
+
           {(activeType === 'image' || activeType === 'video') && (
-            <div className="space-y-4">
+            <div className="space-y-4 pb-12">
               {!uploadedFile ? (
                 <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-muted-foreground/30 rounded-xl cursor-pointer hover:border-primary/50 transition-colors">
                   <Upload className="w-10 h-10 text-muted-foreground mb-2" />
@@ -165,18 +175,27 @@ export function InputSection({ onVerify, isLoading }: InputSectionProps) {
                   </button>
                 </div>
               )}
-              
+
               <Textarea
                 placeholder="Add context or describe the claim associated with this media (optional)..."
                 value={mediaDescription}
                 onChange={(e) => setMediaDescription(e.target.value)}
-                className="min-h-[80px] resize-none border-0 bg-transparent text-base focus-visible:ring-0 placeholder:text-muted-foreground/60"
+                className="min-h-[80px] w-full resize-none border-0 bg-transparent text-base focus-visible:ring-0 placeholder:text-muted-foreground/60"
               />
             </div>
           )}
         </div>
+
+        {/* Model Selector in bottom right of the card, high z-index */}
+        <div className="absolute bottom-6 right-6 z-30">
+          <ModelSelector
+            models={models}
+            selectedId={selectedModelId}
+            onSelect={onSelectModel}
+          />
+        </div>
       </GlowCard>
-      
+
       {/* Submit Button */}
       <div className="mt-8 flex justify-center">
         <StardustButton

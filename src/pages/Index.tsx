@@ -11,18 +11,21 @@ import { useDemoMode } from '@/hooks/useDemoMode';
 import type { VerificationInput, VerificationResult, UserFeedback, VerdictType } from '@/types/verification';
 import { toast } from 'sonner';
 
+import { useModelManagement } from '@/hooks/useModelManagement';
+
 const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<VerificationResult | null>(null);
   const [currentImageBase64, setCurrentImageBase64] = useState<string | undefined>();
   const [feedbackHistory, setFeedbackHistory] = useState<UserFeedback[]>();
   const { isDemoMode } = useDemoMode();
+  const { models, selectedModelId, setSelectedModelId, markModelAsExhausted } = useModelManagement();
 
   const handleVerify = async (input: VerificationInput) => {
     setIsLoading(true);
     setResult(null);
     setCurrentImageBase64(undefined);
-    
+
     try {
       // Store image base64 for potential feedback submission
       if (input.file && input.type === 'image') {
@@ -30,16 +33,24 @@ const Index = () => {
         reader.onload = () => setCurrentImageBase64(reader.result as string);
         reader.readAsDataURL(input.file);
       }
-      
+
+      // Pass the selected model ID
+      const verificationInput = { ...input, modelId: selectedModelId };
+
       // Use mock verification in demo mode, real API otherwise
-      const verificationResult = isDemoMode 
-        ? await mockVerifyContent(input)
-        : await verifyContent(input);
-      
+      const verificationResult = isDemoMode
+        ? await mockVerifyContent(verificationInput)
+        : await verifyContent(verificationInput);
+
       setResult(verificationResult);
       setIsLoading(false);
-    } catch (error) {
-      toast.error('Verification failed. Please try again.');
+    } catch (error: any) {
+      if (error.message === 'RATE_LIMIT_EXHAUSTED') {
+        markModelAsExhausted(selectedModelId);
+        toast.error('The selected server is currently at capacity. We have automatically switched you to another available server.');
+      } else {
+        toast.error('Verification failed. Please try again.');
+      }
       console.error('Verification error:', error);
       setIsLoading(false);
     }
@@ -60,7 +71,7 @@ const Index = () => {
         timestamp: new Date(),
       };
       setFeedbackHistory(prev => [...(prev || []), feedback]);
-      
+
       // Submit feedback to database for AI training
       try {
         await submitFeedback({
@@ -87,21 +98,27 @@ const Index = () => {
       <div className="fixed inset-0 z-0">
         <InfiniteGrid className="w-full h-full" />
       </div>
-      
+
       <div className="relative z-10">
         <Header />
       </div>
-      
+
       <main className="container max-w-6xl mx-auto px-4 py-12 relative z-10">
         {!result && !isLoading && (
           <>
             <HeroSection />
-            <InputSection onVerify={handleVerify} isLoading={isLoading} />
+            <InputSection
+              onVerify={handleVerify}
+              isLoading={isLoading}
+              models={models}
+              selectedModelId={selectedModelId}
+              onSelectModel={setSelectedModelId}
+            />
           </>
         )}
-        
+
         {isLoading && <LoadingState />}
-        
+
         {result && !isLoading && (
           <ResultsSection
             result={result}
@@ -110,12 +127,12 @@ const Index = () => {
           />
         )}
       </main>
-      
+
       {/* Footer */}
       <footer className="border-t border-border py-8 mt-12 relative z-10 bg-background/80 backdrop-blur-sm">
         <div className="container max-w-6xl mx-auto px-4 text-center text-sm text-muted-foreground">
           <p>
-            TruthLenz uses AI to help identify misinformation. Results are not 100% accurate. 
+            TruthLenz uses AI to help identify misinformation. Results are not 100% accurate.
             Always verify information from multiple trusted sources.
           </p>
         </div>

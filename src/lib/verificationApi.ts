@@ -82,11 +82,16 @@ export const verifyContent = async (input: VerificationInput): Promise<Verificat
       type: input.type,
       mediaDescription: input.file?.name,
       mediaBase64,
+      modelId: input.modelId,
     },
   });
 
   if (error) {
     console.error('Verification API error:', error);
+    // Handle rate limit error specifically if possible
+    if (error.message?.includes('429') || error.message?.toLowerCase().includes('limit')) {
+      throw new Error('RATE_LIMIT_EXHAUSTED');
+    }
     throw new Error(error.message || 'Verification failed');
   }
 

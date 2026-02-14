@@ -2,10 +2,20 @@ export type VerificationType = 'text' | 'url' | 'image' | 'video';
 
 export type VerdictType = 'reliable' | 'misleading' | 'fake' | 'inconclusive';
 
+export interface ModelInfo {
+  id: string;
+  name: string;
+  provider: 'google' | 'openai' | 'anthropic';
+  description: string;
+  isAvailable: boolean;
+  cooldownUntil?: number;
+}
+
 export interface VerificationInput {
   type: VerificationType;
   content: string;
   file?: File;
+  modelId?: string;
 }
 
 export interface TextAnalysis {

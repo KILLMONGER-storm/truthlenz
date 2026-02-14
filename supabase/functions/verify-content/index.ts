@@ -12,6 +12,7 @@ interface VerificationRequest {
   mediaDescription?: string;
   mediaBase64?: string;
   imageBase64?: string;
+  modelId?: string;
 }
 
 interface ImageInspectionDetail {
@@ -306,7 +307,7 @@ serve(async (req) => {
 
   try {
     const requestData = await req.json() as VerificationRequest;
-    const { content, type, mediaDescription } = requestData;
+    const { content, type, mediaDescription, modelId } = requestData;
     const mediaBase64 = requestData.mediaBase64 || requestData.imageBase64;
 
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || Deno.env.get("geminiapikey");
@@ -333,18 +334,40 @@ serve(async (req) => {
       let analysis;
       let usedEngine = "none";
 
-      if (OPENAI_API_KEY) {
+      // If a specific model is requested, try that first
+      if (modelId) {
+        if (modelId.startsWith('gpt') && OPENAI_API_KEY) {
+          try {
+            analysis = await callOpenAI(OPENAI_API_KEY, [modelId, ...OPENAI_MODELS], prompt, userContent);
+            usedEngine = `openai-${modelId}`;
+          } catch (e) {
+            console.warn(`Requested OpenAI model ${modelId} failed:`, e);
+            if (e.message?.includes('429')) throw e; // Propagate rate limit
+          }
+        } else if (modelId.startsWith('gemini') && GEMINI_API_KEY) {
+          try {
+            analysis = await callGemini(GEMINI_API_KEY, [modelId, ...MEDIA_MODELS], prompt, userContent);
+            usedEngine = `gemini-${modelId}`;
+          } catch (e) {
+            console.warn(`Requested Gemini model ${modelId} failed:`, e);
+            if (e.message?.includes('429')) throw e; // Propagate rate limit
+          }
+        }
+      }
+
+      // Fallback logic
+      if (!analysis && OPENAI_API_KEY && (!modelId || modelId.startsWith('gpt'))) {
         try {
           analysis = await callOpenAI(OPENAI_API_KEY, OPENAI_MODELS, prompt, userContent);
-          usedEngine = "openai";
+          usedEngine = "openai-fallback";
         } catch (openaiError) {
-          console.warn("OpenAI failed, falling back to Gemini:", openaiError);
+          console.warn("OpenAI fallback failed:", openaiError);
         }
       }
 
       if (!analysis && GEMINI_API_KEY) {
         analysis = await callGemini(GEMINI_API_KEY, MEDIA_MODELS, prompt, userContent);
-        usedEngine = "gemini";
+        usedEngine = "gemini-fallback";
       }
 
       if (!analysis) {
@@ -397,13 +420,37 @@ serve(async (req) => {
       let analysis;
       let usedEngine = "none";
 
-      if (OPENAI_API_KEY) {
+      // If a specific model is requested, try that first
+      if (modelId) {
+        if (modelId.startsWith('gpt') && OPENAI_API_KEY) {
+          try {
+            analysis = await callOpenAI(OPENAI_API_KEY, [modelId, ...OPENAI_MODELS], SYSTEM_PROMPTS.text, [{ type: "text", text: prompt }]);
+            usedEngine = `openai-${modelId}`;
+          } catch (e) {
+            console.warn(`Requested OpenAI model ${modelId} failed:`, e);
+            if (e.message?.includes('429')) throw e;
+          }
+        } else if (modelId.startsWith('gemini') && GEMINI_API_KEY) {
+          try {
+            let finalPrompt = prompt;
+            if (type === 'url') {
+              finalPrompt = `CRITICAL: This is a direct URL link. \n1. Visit this URL: "${content}"\n2. Extract its content and claims.\n3. Verify if these claims are accurate vs fake.\n4. Analyze the source's credibility.\n\nInput to verify: ${content}\n\n${feedbackContext}`;
+            }
+            analysis = await callGemini(GEMINI_API_KEY, [modelId, ...TEXT_MODELS], SYSTEM_PROMPTS.text, [{ type: "text", text: finalPrompt }], tools);
+            usedEngine = `gemini-${modelId}`;
+          } catch (e) {
+            console.warn(`Requested Gemini model ${modelId} failed:`, e);
+            if (e.message?.includes('429')) throw e;
+          }
+        }
+      }
+
+      if (!analysis && OPENAI_API_KEY && (!modelId || modelId.startsWith('gpt'))) {
         try {
-          // Note: OpenAI doesn't support the same google_search tool directly in this call
           analysis = await callOpenAI(OPENAI_API_KEY, OPENAI_MODELS, SYSTEM_PROMPTS.text, [{ type: "text", text: prompt }]);
-          usedEngine = "openai";
+          usedEngine = "openai-fallback";
         } catch (openaiError) {
-          console.warn("OpenAI failed, falling back to Gemini:", openaiError);
+          console.warn("OpenAI fallback failed:", openaiError);
         }
       }
 
@@ -413,7 +460,7 @@ serve(async (req) => {
           finalPrompt = `CRITICAL: This is a direct URL link. \n1. Visit this URL: "${content}"\n2. Extract its content and claims.\n3. Verify if these claims are accurate vs fake.\n4. Analyze the source's credibility.\n\nInput to verify: ${content}\n\n${feedbackContext}`;
         }
         analysis = await callGemini(GEMINI_API_KEY, TEXT_MODELS, SYSTEM_PROMPTS.text, [{ type: "text", text: finalPrompt }], tools);
-        usedEngine = "gemini";
+        usedEngine = "gemini-fallback";
       }
 
       if (!analysis) {
@@ -443,7 +490,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Internal Server Error" }),
       {
-        status: 500,
+        status: error.message?.includes('429') ? 429 : 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
