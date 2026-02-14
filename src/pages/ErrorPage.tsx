@@ -1,6 +1,5 @@
 import React from 'react';
 import { GlitchyError } from '@/components/ui/GlitchyError';
-import { PatternText } from '@/components/ui/PatternText';
 import { Alert, AlertTitle, AlertDescription, AlertContent } from '@/components/ui/alert-v2';
 import { ShieldAlert, RefreshCcw, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -28,11 +27,10 @@ const ErrorPage: React.FC<ErrorPageProps> = ({
                     errorCode={errorCode}
                 />
 
-                <div className="text-center -mt-16 mb-12">
-                    <PatternText
-                        text={errorMessage}
-                        className="text-[3rem] sm:text-[4rem] md:text-[5rem] tracking-[0.2em] font-black opacity-80"
-                    />
+                <div className="text-center -mt-10 mb-12">
+                    <h2 className="text-xl font-mono text-muted-foreground tracking-[0.3em] uppercase animate-pulse">
+                        {errorMessage}
+                    </h2>
                 </div>
 
                 <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-700">
