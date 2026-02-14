@@ -215,16 +215,16 @@ interface GlitchyErrorProps {
     errorCode?: string;
     width?: number;
     height?: number;
-    color?: string;
 }
 
 export function GlitchyError({
     errorCode = "404",
     width = 860,
     height = 232,
-    color = "currentColor"
 }: GlitchyErrorProps) {
     const digits = errorCode.split("");
+    const dotColor = "#EF4444";
+    const backgroundColor = "#FACC15";
 
     return (
         <FuzzyWrapper baseIntensity={0.4} className="cursor-pointer max-w-full h-auto">
@@ -234,62 +234,80 @@ export function GlitchyError({
                     height={height}
                     viewBox="0 0 100 29"
                     xmlns="http://www.w3.org/2000/svg"
-                    className="cursor-pointer fill-current"
+                    className="cursor-pointer"
                 >
-                    {/* Dynamic text rendering with glitchy layers */}
+                    <defs>
+                        {/* Dot Pattern for Comic Effect */}
+                        <pattern
+                            id="dotPattern"
+                            patternUnits="userSpaceOnUse"
+                            width="2"
+                            height="2"
+                        >
+                            <rect width="2" height="2" fill={backgroundColor} />
+                            <circle cx="0.5" cy="0.5" r="0.3" fill={dotColor} />
+                        </pattern>
+
+                        {/* Comic Shadow Filter */}
+                        <filter id="comicShadow" x="-20%" y="-20%" width="140%" height="140%">
+                            <feDropShadow dx="1" dy="1" stdDeviation="0" floodColor="#000000" />
+                            <feDropShadow dx="0.6" dy="0.6" stdDeviation="0" floodColor={dotColor} />
+                        </filter>
+                    </defs>
+
+                    {/* Dynamic text rendering with comic style and glitchy layers */}
                     {digits.map((digit, i) => (
                         <React.Fragment key={i}>
                             <motion.g
                                 variants={getVariants(i * 3)}
                                 animate="shake"
                                 transition={{ delay: getRandomDelay() }}
+                                style={{ transformOrigin: `${25 + i * 25}px 15px` }}
                             >
                                 <text
                                     x={20 + i * 25}
                                     y="22"
-                                    fontSize="24"
+                                    fontSize="22"
                                     fontWeight="900"
-                                    fontFamily="Inter, system-ui, sans-serif"
-                                    fill={color}
-                                    opacity="0.8"
+                                    fontFamily="'Bangers', 'Comic Sans MS', 'Impact', sans-serif"
+                                    fill="url(#dotPattern)"
+                                    stroke="#000000"
+                                    strokeWidth="0.8"
+                                    filter="url(#comicShadow)"
+                                    style={{
+                                        transform: "skewX(-10deg)",
+                                        textTransform: "uppercase"
+                                    }}
                                 >
                                     {digit}
                                 </text>
                             </motion.g>
+
+                            {/* Ghost layer for extra glitchiness */}
                             <motion.g
                                 variants={getVariants(i * 3 + 1)}
                                 animate="shake"
-                                style={{ filter: "blur(0.5px)" }}
                                 transition={{ delay: getRandomDelay() }}
+                                opacity="0.3"
                             >
                                 <text
-                                    x={20 + i * 25 + (Math.random() - 0.5) * 1}
+                                    x={20 + i * 25 + (Math.random() - 0.5) * 2}
                                     y="22"
-                                    fontSize="24"
+                                    fontSize="22"
                                     fontWeight="900"
-                                    fontFamily="Inter, system-ui, sans-serif"
-                                    fill={color}
-                                    opacity="0.4"
+                                    fontFamily="'Bangers', 'Comic Sans MS', 'Impact', sans-serif"
+                                    fill="transparent"
+                                    stroke="#000000"
+                                    strokeWidth="0.4"
+                                    style={{
+                                        transform: "skewX(-10deg)",
+                                        textTransform: "uppercase"
+                                    }}
                                 >
                                     {digit}
                                 </text>
                             </motion.g>
                         </React.Fragment>
-                    ))}
-
-                    {/* Random horizontal glitch lines */}
-                    {[...Array(5)].map((_, i) => (
-                        <motion.rect
-                            key={i}
-                            variants={getVariants(i + 10)}
-                            animate="shake"
-                            x="0"
-                            y={5 + i * 5}
-                            width="100"
-                            height="0.5"
-                            fill={color}
-                            opacity="0.1"
-                        />
                     ))}
                 </svg>
             </div>
