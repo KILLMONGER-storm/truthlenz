@@ -1,174 +1,81 @@
-# TruthLenz - AI-Powered Misinformation Detection Platform
+# TruthLenz - AI-Powered Content Verification Platform
+A forensic-grade verification engine for detecting misinformation, deepfakes, and manipulated media. TruthLenz leverages advanced AI to provide real-time credibility assessments across text, images, and video.
 
-TruthLenz is a comprehensive fact-checking and content verification platform that uses advanced AI to detect misinformation, deepfakes, and manipulated media across text, URLs, images, and videos.
+🛡️ Core Capabilities
+TruthLenz provides a suite of high-fidelity verification tools designed for journalists, researchers, and public safety:
+- **Multimodal Forensic Analysis**: Simultaneous processing of text, metadata, and pixel-level media data.
+- **Deepfake & Manipulation Detection**: Advanced neural networks trained to identify AI-generated or altered visual content.
+- **Evidence-Based Verdicts**: Clear, transparent justifications for every credibility score.
+- **Enterprise-Ready Infrastructure**: Secure, serverless architecture built on Supabase and OpenAI with fallback to Google Gemini.
 
-## Architecture
+🔍 Verification Modules
+The platform is organized into specialized modules for comprehensive analysis:
 
-TruthLenz is built on a modern, serverless architecture:
+📊 Text & Claim Analysis
+- **Fact-Checking**: Cross-references claims against global data sources.
+- **Claim Extraction**: Automatically identifies verifiable statements within large documents.
+- **Credibility Scoring**: Quantitative assessment of textual reliability based on source and consistency.
 
-- **Frontend**: React + TypeScript + Vite
-- **Backend**: Supabase Edge Functions (Deno runtime)
-- **AI Engine**: Google Gemini API for multimodal forensic analysis
-- **Database**: Supabase PostgreSQL
-- **Authentication**: Supabase Auth with Google OAuth
+👁️ Media Forensics
+- **Image Inspection**: Detects pixel manipulation and metadata inconsistencies.
+- **Deepfake Analysis**: Analyzes temporal and spatial patterns for video authenticity.
+- **AI-Generation Check**: Specifically identifies content created by GANs or Diffusion models.
+- **Media Verification**: Leverages OpenAI with fallback to Google Gemini for deep visual reasoning.
 
-All AI verification logic runs entirely on Supabase Edge Functions, ensuring security and scalability.
+🌐 Web & Source Intelligence
+- **URL Credibility**: Evaluates the reputation and historical accuracy of domains.
+- **Source Cross-Referencing**: Validates information across multiple independent platforms.
+- **Contextual Awareness**: Maintains history and relationship between verified entities.
 
-## Features
+⚙️ Setup & Deployment
+Prerequisites
+- Node.js 20+ (or Bun)
+- Supabase CLI & Account
+- OpenAI API Key
+- Google AI (Gemini) API Key
+Installation
+1. **Clone the Repository**
+   ```bash
+   git clone <YOUR_REPO_URL>
+   cd TruthLenz
+   ```
+2. **Install Dependencies**
+   ```bash
+   npm install
+   ```
+3. **Configure Local Environment**
+   Create a `.env` file in the root directory:
+   ```env
+   VITE_SUPABASE_URL=your_project_url
+   VITE_SUPABASE_ANON_KEY=your_anon_key
+   OPENAI_API_KEY=your_openai_api_key
+   GEMINI_API_KEY=your_gemini_api_key
+   ```
+4. **Configure Cloud Secrets**
+   Set the OPENAI_API_KEY and GEMINI_API_KEY in your Supabase project:
+   ```bash
+   supabase secrets set OPENAI_API_KEY=your_openai_api_key GEMINI_API_KEY=your_gemini_api_key
+   ```
 
-- **Text Verification**: Fact-checking with claim extraction and credibility scoring
-- **URL Analysis**: Web content verification and source credibility assessment
-- **Image Forensics**: AI-generated image detection, manipulation analysis, pixel-level inspection
-- **Video Analysis**: Deepfake detection, temporal consistency checks, frame analysis
-- **User Feedback Loop**: Continuous learning from user corrections
-- **Authentication**: Secure Google Sign-In integration
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 18+ or Bun
-- Supabase account
-- Google Gemini API key
-
-### Environment Setup
-
-Create a `.env` file in the root directory:
-
-```env
-VITE_SUPABASE_PROJECT_ID=your_project_id
-VITE_SUPABASE_PUBLISHABLE_KEY=your_anon_key
-VITE_SUPABASE_URL=https://your_project_id.supabase.co
-```
-
-### Supabase Edge Function Secrets
-
-Set the Gemini API key in Supabase:
-
+📝 Operational Guidelines
+Standard Operation
 ```bash
-supabase secrets set GEMINI_API_KEY=your_gemini_api_key
-```
-
-### Installation
-
-```bash
-# Install dependencies
-npm install
-
-# Run development server
 npm run dev
-
-# Build for production
-npm run build
 ```
+- Accessed via `http://localhost:8080`.
+- Provides an interactive dashboard for submitting and reviewing verification requests.
 
-The application will be available at `http://localhost:8080`
-
-## Development
-
-### Project Structure
-
-```
-truthlenz/
-├── src/
-│   ├── components/        # React components
-│   ├── integrations/      # Supabase client
-│   ├── lib/              # Utility functions and API clients
-│   └── types/            # TypeScript type definitions
-├── supabase/
-│   └── functions/
-│       └── verify-content/  # Edge Function for AI verification
-└── public/               # Static assets
-```
-
-### Running Locally
-
-The frontend communicates directly with Supabase Edge Functions:
-
-```
-Frontend (React) → Supabase Edge Function → Gemini API → Response
-```
-
-### Supabase Edge Function
-
-The `verify-content` Edge Function handles all AI verification:
-
+Production Deployment
 ```bash
-# Deploy Edge Function
+# Deploy verification engine (Edge Function)
 supabase functions deploy verify-content --no-verify-jwt
 
-# Test locally
-supabase functions serve
-```
-
-## Deployment
-
-### Frontend Deployment
-
-The frontend can be deployed to any static hosting service:
-
-```bash
+# Build frontend assets
 npm run build
-# Deploy the 'dist' folder to Vercel, Netlify, etc.
 ```
 
-### Supabase Configuration
-
-1. Create a Supabase project
-2. Set up Google OAuth in Authentication settings
-3. Deploy the Edge Function
-4. Configure secrets (GEMINI_API_KEY)
-5. Update frontend environment variables
-
-## Technology Stack
-
-| Component | Technology |
-|-----------|-----------|
-| Frontend Framework | React 18 + TypeScript |
-| Build Tool | Vite |
-| UI Components | Radix UI + Tailwind CSS |
-| Backend Runtime | Supabase Edge Functions (Deno) |
-| AI Model | Google Gemini 1.5/2.0 |
-| Database | Supabase PostgreSQL |
-| Authentication | Supabase Auth |
-| State Management | TanStack Query |
-
-## API Reference
-
-### Verification Endpoint
-
-```
-POST https://{project_id}.supabase.co/functions/v1/verify-content
-```
-
-**Request Body:**
-```json
-{
-  "content": "Text to verify or media description",
-  "type": "text" | "url" | "image" | "video",
-  "mediaBase64": "base64_encoded_media (for image/video)"
-}
-```
-
-**Response:**
-```json
-{
-  "id": "uuid",
-  "verdict": "reliable" | "misleading" | "fake" | "inconclusive",
-  "credibilityScore": 0-100,
-  "explanation": "Detailed analysis",
-  "textAnalysis": { ... },
-  "claimExtraction": { ... },
-  "mediaVerification": { ... },
-  "timestamp": "ISO 8601 timestamp",
-  "engine": "supabase"
-}
-```
-
-## Contributing
-
-This is a private project. For issues or feature requests, please contact the development team.
-
-## License
-
-Proprietary - All rights reserved
+🏗️ System Architecture
+- **src/components/**: Logic for analysis visualization and user interaction.
+- **src/lib/**: API clients and core verification utilities.
+- **supabase/functions/**: Serverless verification engine (Deno/TypeScript).
+- **src/pages/**: High-level application views and layouts.
