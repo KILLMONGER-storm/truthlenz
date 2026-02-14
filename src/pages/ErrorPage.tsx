@@ -3,7 +3,7 @@ import { GlitchyError } from '@/components/ui/GlitchyError';
 import { Alert, AlertTitle, AlertDescription, AlertContent } from '@/components/ui/alert-v2';
 import { ShieldAlert, RefreshCcw, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 interface ErrorPageProps {
     errorCode?: string;
@@ -19,12 +19,17 @@ const ErrorPage: React.FC<ErrorPageProps> = ({
     variant: propVariant = 'error'
 }) => {
     const navigate = useNavigate();
+    const { code: pathCode } = useParams();
     const [searchParams] = useSearchParams();
 
-    // Use props if provided, otherwise check search params, otherwise use defaults
-    const errorCode = propErrorCode || searchParams.get('code') || '404';
-    const errorMessage = propErrorMessage || searchParams.get('message') || 'NOT FOUND';
-    const description = propDescription || searchParams.get('desc') || "The page you are looking for does not exist or has been moved.";
+    // Priority:
+    // 1. Props passed directly (from catch-all route)
+    // 2. Path parameter (e.g., /error/429)
+    // 3. Search parameter (e.g., ?code=500)
+    // 4. Default to 404
+    const errorCode = propErrorCode || pathCode || searchParams.get('code') || '404';
+    const errorMessage = propErrorMessage || searchParams.get('message') || (errorCode === '404' ? 'NOT FOUND' : 'ERROR OCCURRED');
+    const description = propDescription || searchParams.get('desc') || (errorCode === '404' ? "The page you are looking for does not exist or has been moved." : "The forensic engine encountered an issue.");
     const variant = propVariant;
 
     return (
