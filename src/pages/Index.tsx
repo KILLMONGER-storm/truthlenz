@@ -40,6 +40,14 @@ const Index = () => {
         reader.readAsDataURL(input.file);
       }
 
+      // PASS-THROUGH SIMULATION FOR TESTING
+      if (input.content === 'error_429') {
+        throw new Error('RATE_LIMIT_EXHAUSTED');
+      }
+      if (input.content === 'error_500') {
+        throw new Error('SYSTEM_FAILURE');
+      }
+
       // Pass the selected model ID
       const verificationInput = { ...input, modelId: selectedModelId };
 
