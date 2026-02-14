@@ -24,12 +24,12 @@ const RetroTvError = React.forwardRef<HTMLDivElement, RetroTvErrorProps>(
             <div
                 ref={ref}
                 className={cn(
-                    'main_wrapper flex flex-col items-center justify-center p-8 min-h-[400px]',
+                    'main_wrapper flex items-center justify-center relative min-h-[500px] w-full',
                     className
                 )}
                 {...props}
             >
-                <div className="main_tv_container">
+                <div className="main">
                     <div className="antenna">
                         <div className="antenna_shadow"></div>
                         <div className="a1"></div>
@@ -55,7 +55,7 @@ const RetroTvError = React.forwardRef<HTMLDivElement, RetroTvErrorProps>(
                                         <span className="notfound_text">{errorMessage}</span>
                                     </div>
                                     <div className="screenM">
-                                        <span className="notfound_text text-red-500">{errorMessage}</span>
+                                        <span className="notfound_text">{errorMessage}</span>
                                     </div>
                                 </div>
                             </div>
@@ -87,10 +87,10 @@ const RetroTvError = React.forwardRef<HTMLDivElement, RetroTvErrorProps>(
                         <div className="base3"></div>
                     </div>
                 </div>
-                <div className="text_404 mt-8 flex gap-4">
+                <div className="text_404">
                     {/* Map over the error code digits to render them */}
                     {errorCodeDigits.map((digit, index) => (
-                        <div key={index} className={`text_404_digit text_404${index + 1} text-6xl font-bold font-mono`}>
+                        <div key={index} className={`text_404${index + 1}`}>
                             {digit}
                         </div>
                     ))}
