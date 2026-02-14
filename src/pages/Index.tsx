@@ -14,13 +14,13 @@ import { toast } from 'sonner';
 import { useModelManagement } from '@/hooks/useModelManagement';
 
 import { Alert, AlertTitle, AlertDescription, AlertContent } from '@/components/ui/alert-v2';
-import { ShieldX, AlertTriangle, RefreshCcw } from 'lucide-react';
+import { ShieldAlert, TriangleAlert, RefreshCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<VerificationResult | null>(null);
-  const [error, setError] = useState<{ code: string; message: string; variant: 'error' | 'warning' } | null>(null);
+  const [error, setError] = useState<{ code: string; message: string; variant: 'error' | 'warning' | 'info' } | null>(null);
   const [currentImageBase64, setCurrentImageBase64] = useState<string | undefined>();
   const [feedbackHistory, setFeedbackHistory] = useState<UserFeedback[]>();
   const { isDemoMode } = useDemoMode();
@@ -41,11 +41,11 @@ const Index = () => {
       }
 
       // PASS-THROUGH SIMULATION FOR TESTING
-      if (input.content === 'error_429') {
-        throw new Error('RATE_LIMIT_EXHAUSTED');
+      if (input.content.trim() === 'error_429') {
+        throw new Error('MOCK_RATE_LIMIT');
       }
-      if (input.content === 'error_500') {
-        throw new Error('SYSTEM_FAILURE');
+      if (input.content.trim() === 'error_500') {
+        throw new Error('MOCK_SYSTEM_FAILURE');
       }
 
       // Pass the selected model ID
@@ -60,8 +60,10 @@ const Index = () => {
       setIsLoading(false);
     } catch (err: any) {
       console.error('Verification error:', err);
-      if (err.message === 'RATE_LIMIT_EXHAUSTED') {
-        markModelAsExhausted(selectedModelId);
+      if (err.message === 'RATE_LIMIT_EXHAUSTED' || err.message === 'MOCK_RATE_LIMIT') {
+        if (err.message === 'RATE_LIMIT_EXHAUSTED') {
+          markModelAsExhausted(selectedModelId);
+        }
         setError({
           code: '429',
           message: 'This server is currently at capacity. We have automatically swapped sensors to keep you protected.',
@@ -70,7 +72,9 @@ const Index = () => {
       } else {
         setError({
           code: '500',
-          message: err.message || 'The verification engine encountered an unexpected error. Please try another server.',
+          message: err.message === 'MOCK_SYSTEM_FAILURE'
+            ? 'The verification engine encountered an unexpected error. Please try another server.'
+            : (err.message || 'An unexpected error occurred.'),
           variant: 'error'
         });
       }
@@ -129,18 +133,24 @@ const Index = () => {
       <main className="container max-w-6xl mx-auto px-4 py-12 relative z-10">
         {error && !isLoading && !result && (
           <div className="max-w-3xl mx-auto mb-8 animate-in fade-in slide-in-from-top-4 duration-500">
-            <Alert variant={error.variant} size="lg" layout="complex" className="bg-card/40 backdrop-blur-md border-border/50">
-              {error.variant === 'error' ? <ShieldX className="w-5 h-5 mt-0.5" /> : <AlertTriangle className="w-5 h-5 mt-0.5" />}
-              <AlertContent>
-                <AlertTitle className="text-base font-bold">Error {error.code}</AlertTitle>
-                <AlertDescription className="text-sm">
+            <Alert
+              variant={error.variant}
+              size="lg"
+              layout="complex"
+              className="bg-card/40 backdrop-blur-md border-border/50 shadow-2xl"
+              icon={error.variant === 'error' ? <ShieldAlert className="w-5 h-5" /> : <TriangleAlert className="w-5 h-5" />}
+            >
+              <AlertContent className="text-left">
+                <AlertTitle className="text-base font-bold tracking-tight uppercase">System Notice: Error {error.code}</AlertTitle>
+                <AlertDescription className="text-sm font-medium opacity-90">
                   {error.message}
                 </AlertDescription>
-                <div className="mt-4">
-                  <Button variant="outline" size="sm" onClick={() => setError(null)} className="h-8 gap-2 border-border/50 hover:bg-muted">
+                <div className="mt-4 flex items-center gap-3">
+                  <Button variant="outline" size="sm" onClick={() => setError(null)} className="h-8 gap-2 border-border/50 hover:bg-muted font-semibold">
                     <RefreshCcw className="w-3 h-3" />
-                    Retry Verification
+                    Reset Sensor
                   </Button>
+                  <span className="text-[10px] uppercase tracking-widest opacity-40 font-bold">Diagnostic Mode Active</span>
                 </div>
               </AlertContent>
             </Alert>
