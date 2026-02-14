@@ -7,9 +7,9 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider } from "@/hooks/useAuth";
 import { DemoModeProvider } from "@/hooks/useDemoMode";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import ErrorPage from "./pages/ErrorPage";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
-import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
@@ -24,16 +24,17 @@ const App = () => (
             <BrowserRouter>
               <Routes>
                 <Route path="/auth" element={<Auth />} />
-                <Route 
-                  path="/" 
+                <Route
+                  path="/"
                   element={
                     <ProtectedRoute>
                       <Index />
                     </ProtectedRoute>
-                  } 
+                  }
                 />
+                <Route path="/error" element={<ErrorPage />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                <Route path="*" element={<NotFound />} />
+                <Route path="*" element={<ErrorPage errorCode="404" errorMessage="NOT FOUND" description="The page you are looking for does not exist or has been moved." />} />
               </Routes>
             </BrowserRouter>
           </TooltipProvider>

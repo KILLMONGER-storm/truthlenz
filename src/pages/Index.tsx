@@ -13,9 +13,14 @@ import { toast } from 'sonner';
 
 import { useModelManagement } from '@/hooks/useModelManagement';
 
+import { Alert, AlertTitle, AlertDescription, AlertContent } from '@/components/ui/alert-v2';
+import { ShieldX, AlertTriangle, RefreshCcw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+
 const Index = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<VerificationResult | null>(null);
+  const [error, setError] = useState<{ code: string; message: string; variant: 'error' | 'warning' } | null>(null);
   const [currentImageBase64, setCurrentImageBase64] = useState<string | undefined>();
   const [feedbackHistory, setFeedbackHistory] = useState<UserFeedback[]>();
   const { isDemoMode } = useDemoMode();
@@ -24,6 +29,7 @@ const Index = () => {
   const handleVerify = async (input: VerificationInput) => {
     setIsLoading(true);
     setResult(null);
+    setError(null);
     setCurrentImageBase64(undefined);
 
     try {
@@ -44,20 +50,29 @@ const Index = () => {
 
       setResult(verificationResult);
       setIsLoading(false);
-    } catch (error: any) {
-      if (error.message === 'RATE_LIMIT_EXHAUSTED') {
+    } catch (err: any) {
+      console.error('Verification error:', err);
+      if (err.message === 'RATE_LIMIT_EXHAUSTED') {
         markModelAsExhausted(selectedModelId);
-        toast.error('The selected server is currently at capacity. We have automatically switched you to another available server.');
+        setError({
+          code: '429',
+          message: 'This server is currently at capacity. We have automatically swapped sensors to keep you protected.',
+          variant: 'warning'
+        });
       } else {
-        toast.error('Verification failed. Please try again.');
+        setError({
+          code: '500',
+          message: err.message || 'The verification engine encountered an unexpected error. Please try another server.',
+          variant: 'error'
+        });
       }
-      console.error('Verification error:', error);
       setIsLoading(false);
     }
   };
 
   const handleNewVerification = () => {
     setResult(null);
+    setError(null);
     setCurrentImageBase64(undefined);
   };
 
@@ -104,6 +119,26 @@ const Index = () => {
       </div>
 
       <main className="container max-w-6xl mx-auto px-4 py-12 relative z-10">
+        {error && !isLoading && !result && (
+          <div className="max-w-3xl mx-auto mb-8 animate-in fade-in slide-in-from-top-4 duration-500">
+            <Alert variant={error.variant} size="lg" layout="complex" className="bg-card/40 backdrop-blur-md border-border/50">
+              {error.variant === 'error' ? <ShieldX className="w-5 h-5 mt-0.5" /> : <AlertTriangle className="w-5 h-5 mt-0.5" />}
+              <AlertContent>
+                <AlertTitle className="text-base font-bold">Error {error.code}</AlertTitle>
+                <AlertDescription className="text-sm">
+                  {error.message}
+                </AlertDescription>
+                <div className="mt-4">
+                  <Button variant="outline" size="sm" onClick={() => setError(null)} className="h-8 gap-2 border-border/50 hover:bg-muted">
+                    <RefreshCcw className="w-3 h-3" />
+                    Retry Verification
+                  </Button>
+                </div>
+              </AlertContent>
+            </Alert>
+          </div>
+        )}
+
         {!result && !isLoading && (
           <>
             <HeroSection />
