@@ -32,7 +32,7 @@ const App = () => (
                     </ProtectedRoute>
                   }
                 />
-                <Route path="/error" element={<ErrorPage />} />
+                <Route path="/error/:code?" element={<ErrorPage />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<ErrorPage errorCode="404" errorMessage="NOT FOUND" description="The page you are looking for does not exist or has been moved." />} />
               </Routes>

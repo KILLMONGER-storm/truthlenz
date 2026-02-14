@@ -3,7 +3,7 @@ import { GlitchyError } from '@/components/ui/GlitchyError';
 import { Alert, AlertTitle, AlertDescription, AlertContent } from '@/components/ui/alert-v2';
 import { ShieldAlert, RefreshCcw, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 interface ErrorPageProps {
     errorCode?: string;
@@ -13,12 +13,19 @@ interface ErrorPageProps {
 }
 
 const ErrorPage: React.FC<ErrorPageProps> = ({
-    errorCode = '404',
-    errorMessage = 'NOT FOUND',
-    description = "The page you are looking for does not exist or has been moved.",
-    variant = 'error'
+    errorCode: propErrorCode,
+    errorMessage: propErrorMessage,
+    description: propDescription,
+    variant: propVariant = 'error'
 }) => {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+
+    // Use props if provided, otherwise check search params, otherwise use defaults
+    const errorCode = propErrorCode || searchParams.get('code') || '404';
+    const errorMessage = propErrorMessage || searchParams.get('message') || 'NOT FOUND';
+    const description = propDescription || searchParams.get('desc') || "The page you are looking for does not exist or has been moved.";
+    const variant = propVariant;
 
     return (
         <div className="min-h-screen bg-background flex items-center justify-center p-6 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-background via-background to-black">
