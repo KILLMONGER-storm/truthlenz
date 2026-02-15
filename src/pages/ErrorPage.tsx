@@ -1,5 +1,6 @@
 import React from 'react';
 import { GlitchyError } from '@/components/ui/GlitchyError';
+import { PatternText } from '@/components/ui/PatternText';
 import { Alert, AlertTitle, AlertDescription, AlertContent } from '@/components/ui/alert-v2';
 import { ShieldAlert, RefreshCcw, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -28,21 +29,32 @@ const ErrorPage: React.FC<ErrorPageProps> = ({
     // 3. Search parameter (e.g., ?code=500)
     // 4. Default to 404
     const errorCode = propErrorCode || pathCode || searchParams.get('code') || '404';
-    const errorMessage = propErrorMessage || searchParams.get('message') || (errorCode === '404' ? 'NOT FOUND' : 'ERROR OCCURRED');
+
+    // Custom mapping for specific error codes to keep PatternText concise
+    const getCompactMessage = (code: string, originalMsg?: string) => {
+        if (originalMsg && originalMsg !== 'NOT FOUND' && originalMsg !== 'ERROR OCCURRED') return originalMsg;
+        if (code === '429') return 'QUOTA REACHED';
+        if (code === '404') return 'NOT FOUND';
+        if (code === '500') return 'SYSTEM ERROR';
+        return 'ERROR';
+    };
+
+    const errorMessage = getCompactMessage(errorCode, propErrorMessage || searchParams.get('message'));
     const description = propDescription || searchParams.get('desc') || (errorCode === '404' ? "The page you are looking for does not exist or has been moved." : "The forensic engine encountered an issue.");
     const variant = propVariant;
 
     return (
-        <div className="min-h-screen bg-background flex items-center justify-center p-6 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-background via-background to-black">
+        <div className="min-h-screen bg-background flex items-center justify-center p-6 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-background via-background to-black overflow-hidden">
             <div className="max-w-4xl w-full flex flex-col items-center">
                 <GlitchyError
                     errorCode={errorCode}
                 />
 
-                <div className="text-center -mt-10 mb-12">
-                    <h2 className="text-xl font-mono text-muted-foreground tracking-[0.3em] uppercase animate-pulse">
-                        {errorMessage}
-                    </h2>
+                <div className="text-center -mt-16 mb-12 relative z-10 scale-75 md:scale-100">
+                    <PatternText
+                        text={errorMessage}
+                        className="text-[6em] md:text-[8em] tracking-tighter"
+                    />
                 </div>
 
                 <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-700">

@@ -9,7 +9,7 @@ import { verifyContent, submitFeedback } from '@/lib/verificationApi';
 import { verifyContent as mockVerifyContent } from '@/lib/mockVerification';
 import { useDemoMode } from '@/hooks/useDemoMode';
 import type { VerificationInput, VerificationResult, UserFeedback, VerdictType } from '@/types/verification';
-import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 
 import { useModelManagement } from '@/hooks/useModelManagement';
 
@@ -18,6 +18,7 @@ import { ShieldAlert, TriangleAlert, RefreshCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const Index = () => {
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<VerificationResult | null>(null);
   const [error, setError] = useState<{ code: string; message: string; variant: 'error' | 'warning' | 'info' } | null>(null);
@@ -63,12 +64,15 @@ const Index = () => {
       if (err.message === 'RATE_LIMIT_EXHAUSTED' || err.message === 'MOCK_RATE_LIMIT') {
         if (err.message === 'RATE_LIMIT_EXHAUSTED') {
           markModelAsExhausted(selectedModelId);
+          // Redirect to high-impact error page for quota exhaustion
+          navigate(`/error/429?message=QUOTA%20REACHED&desc=This%20sensor%20is%20currently%20at%20capacity.%20We%20have%20automatically%20logged%20this%20event%20for%20forensic%20review.`);
+        } else {
+          setError({
+            code: '429',
+            message: 'This server is currently at capacity. We have automatically swapped sensors to keep you protected.',
+            variant: 'warning'
+          });
         }
-        setError({
-          code: '429',
-          message: 'This server is currently at capacity. We have automatically swapped sensors to keep you protected.',
-          variant: 'warning'
-        });
       } else {
         setError({
           code: '500',
@@ -111,10 +115,9 @@ const Index = () => {
           correctVerdict,
           imageBase64: result.input.type === 'image' ? currentImageBase64 : undefined,
         });
-        toast.success(isCorrect ? 'Thank you for confirming!' : 'Correction submitted. Our AI will learn from this!');
-      } catch (error) {
+      } catch (error: any) {
         console.error('Failed to submit feedback:', error);
-        toast.error('Failed to save feedback. Please try again.');
+        // Silent error handling for feedback in production - errors are logged but not shown to user
       }
     }
   };

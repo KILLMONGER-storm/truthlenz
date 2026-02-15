@@ -126,7 +126,7 @@ Is the user's correction factually true?
 
             const validation = await callGemini(
                 GEMINI_API_KEY,
-                "gemini-2.0-flash-exp",
+                "gemini-1.5-flash",
                 SYSTEM_PROMPT,
                 userPrompt
             );
@@ -145,7 +145,12 @@ Is the user's correction factually true?
         if (isValid) {
             const supabaseUrl = Deno.env.get("SUPABASE_URL");
             const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-            const supabase = createClient(supabaseUrl!, supabaseKey!);
+
+            if (!supabaseUrl || !supabaseKey) {
+                throw new Error("Supabase internal credentials missing in Edge Runtime");
+            }
+
+            const supabase = createClient(supabaseUrl, supabaseKey);
 
             // Simple hash implementation for the edge function
             const hashContent = (content: string): string => {

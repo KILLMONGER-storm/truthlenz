@@ -142,6 +142,10 @@ export const submitFeedback = async (feedback: FeedbackSubmission): Promise<void
 
   if (error) {
     console.error('Edge Function feedback error:', error);
+    // Help the user identify if the function is not deployed
+    if (error.message?.includes('404') || error.message?.toLowerCase().includes('not found')) {
+      throw new Error('FEEDBACK_FUNCTION_NOT_DEPLOYED');
+    }
     throw new Error('Failed to process feedback: ' + error.message);
   }
 
