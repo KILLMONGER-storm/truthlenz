@@ -125,32 +125,32 @@ const hashContent = (content: string): string => {
 };
 
 export const submitFeedback = async (feedback: FeedbackSubmission): Promise<void> => {
-  const contentHash = hashContent(feedback.content || 'no-content');
+  console.log('Submitting feedback via Edge Function for:', feedback.contentType, feedback.isCorrect ? 'positive' : 'negative');
 
-  // For images, include the base64 data for AI training (limit to ~500KB)
-  const imageBase64ForStorage = feedback.imageBase64 && feedback.imageBase64.length < 700000
-    ? feedback.imageBase64
-    : undefined;
-
-  console.log('Submitting feedback for:', feedback.contentType, feedback.isCorrect ? 'positive' : 'negative');
-
-  const { error } = await supabase
-    .from('verification_feedback')
-    .insert({
-      content_hash: contentHash,
-      original_content: (feedback.content || 'No content provided').substring(0, 5000),
-      content_type: feedback.contentType || 'text',
-      original_verdict: feedback.originalVerdict || 'inconclusive',
-      original_score: Math.round(feedback.originalScore || 50),
-      is_correct: feedback.isCorrect,
-      user_correction: feedback.userCorrection || null,
-      correct_verdict: feedback.correctVerdict || null,
-      image_base64: imageBase64ForStorage || null,
-    });
+  const { data, error } = await supabase.functions.invoke('process-feedback', {
+    body: {
+      content: feedback.content,
+      contentType: feedback.contentType,
+      originalVerdict: feedback.originalVerdict,
+      originalScore: feedback.originalScore,
+      isCorrect: feedback.isCorrect,
+      userCorrection: feedback.userCorrection,
+      correctVerdict: feedback.correctVerdict,
+      imageBase64: feedback.imageBase64,
+    },
+  });
 
   if (error) {
-    console.error('Supabase feedback error details:', error);
-    throw new Error('Failed to save feedback: ' + error.message);
+    console.error('Edge Function feedback error:', error);
+    throw new Error('Failed to process feedback: ' + error.message);
+  }
+
+  if (data && !data.success) {
+    console.warn('Feedback rejected by AI:', data.reason);
+    // We still resolve successfully to the user, but we log the rejection
+    // Or we could throw if we want the user to know it was rejected.
+    // Given the request "if it is false do not add it to the database", 
+    // the backend already handles the logic of not adding it.
   }
 };
 
